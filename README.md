@@ -3,6 +3,9 @@ Multivariate Bayesian Analyses for Nursing Research
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
+**Why did the statistician break up with their favorite variable?**  
+*It was unstable.*
+
 # 1 Copyright information
 
 Copyright 2024, University of Pittsburgh. All Rights Reserved. License:
@@ -15,7 +18,7 @@ International Society of Nurses in Genetics:
 
 Heinsberg LW. Statistical Tools to Support Implementation: Variable
 Selection and Post-Selection Inference in Genomic Nursing Research.
-$$Expert Lecturer Abstract, Podium$$. Presented at the International
+(Expert Lecturer Abstract, Podium). Presented at the International
 Society of Nurses in Genetics, November 2024, San Diego, California.
 
 The goal of this repository is to provide detailed code and a synthetic
@@ -23,7 +26,8 @@ example data set to guide nurse scientists and other researchers in
 performing variable selection with a bootstrapping stability
 investigation to support valid post-selection inference.
 
-A case study with example code is presented in CaseStudy.Rmd.
+A case study with example code is presented in
+[CaseStudy.Rmd](CaseStudy.Rmd).
 
 # 3 Contact information
 
@@ -39,5 +43,13 @@ my deepest gratitude to Dr. Daniel Weeks, who first introduced me to
 variable selection and post-selection inference. His support has been
 instrumental in shaping both what I do in science and how I approach it.
 
-**Why did the statistician break up with their favorite variable?** *It
-was unstable.*
+<p align="center">
+
+<img src="R_logo.png" alt="" width="400">
+
+</p>
+<p align="center" style="font-size: 12px;">
+
+*Image made using DALL-E*
+
+</p>

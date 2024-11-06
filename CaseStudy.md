@@ -1,7 +1,7 @@
 Case study: variable selection for the approximation of body fat
 ================
 Lacey W. Heinsberg
-November 06, 2024, 15:18
+November 06, 2024, 16:25
 
 
 
@@ -9,26 +9,76 @@ November 06, 2024, 15:18
 
 
 
-The purpose of this .Rmd is to perform variable selection and
-multivariable modeling of body fat percentage.
-
-Goal: Approximate the proportion of body fat that can be estimated by
-simple anthropometric measures.
-
-This file uses source code that accompanies section 3.3 of the
-manuscript [“Variable selection: A review and recommendations for the
-practicing
+The purpose of this .Rmd file is to demonstrate variable selection and
+multivariable modeling in a fictitious case study estimating body fat
+percentage using simple anthropometric measures. This file uses source
+code that accompanies section 3.3 of the manuscript [“Variable
+selection: A review and recommendations for the practicing
 statistician”](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067)
 that was created by Georg Heinze, Christine Wallisch, and Daniela
-Dunkler. This code has been modified and annotated for:
+Dunkler. This code has been modified and annotated for the following
+work:
 
 Heinsberg LW. Statistical Tools to Support Implementation: Variable
 Selection and Post-Selection Inference in Genomic Nursing Research.
-\[Expert Lecturer Abstract, Podium\]. Presented at the International
+(Expert Lecturer Abstract, Podium). Presented at the International
 Society of Nurses in Genetics, November 2024, San Diego, California.
 
 For questions, comments, or remarks, feel free to contact Lacey
 Heinsberg (<law145@pitt.edu>).
+
+# Define study question
+
+This fictitious study aims to investigate the influence of genetic
+variation (obesity-related SNPs), anthropometric measures, social
+drivers of health (SDOH), and behavioral factors on a continuous measure
+of body fat mass in adults aged 22-81 years.
+
+Outcome Variable: \* Body fat
+
+Explanatory Variables:
+
+1.  Genetics
+
+- rs1 to rs6: Obesity-related genetic markers (0 = no risk alleles, 1 =
+  one risk allele, 2 = two risk alleles).
+- Gene x Environment Effect: Interaction effect of rs1 and sleep
+  duration.
+
+2.  Demographics
+
+- Age: Continuous (years)
+
+3.  Anthropometrics
+
+- Weight: Continuous (kg).
+- Height: Continuous (cm).
+- Circumference Values: neck, abdomen, thigh, knee, ankle, biceps,
+  forearm, wrist: Continuous (cm).
+
+4.  Family dynamics
+
+- Number of Children in Household: Continuous, the total number of
+  children living in the household.
+- Family Mealtime Frequency: Continuous, number of family meals per week
+  (0–21, right-skewed).
+
+5.  Environmental factors
+
+- Physical Environment Score: Composite continuous score, higher scores
+  indicate a safer and more exercise-friendly environment.
+
+6.  Psychosocial factors
+
+- Stress Level: Continuous, with higher scores indicating more stress.
+
+7.  Behavioral factors
+
+- Physical Activity Level: Continuous, hours per day spent on physical
+  activity.
+- Sleep Duration: Continuous, hours of sleep per night.
+- Healthy Eating Index: Continuous, with higher scores indicating better
+  eating habits.
 
 # Load libraries
 
@@ -51,15 +101,17 @@ of body density (from which proportion of body fat can be derived with
 (1956)](https://www.sciencedirect.com/science/article/abs/pii/B978148323110550011X)
 formula) by a combination of age, height, weight, and ten simple
 anthropometric circumference measures through multivariable linear
-regression.
+regression. A more detailed description of the data can be found at:
+<https://ww2.amstat.org/publications/jse/datasets/fat.txt>. In line with
+other literature, Heinze, Wallisch, and Dunkler excluded one individual
+from the original data set with an implausible height observation. The
+team also converted the units of some variables for the approach
+detailed below.
 
-A more detailed description of the data can be found at:
-<https://ww2.amstat.org/publications/jse/datasets/fat.txt>
-
-In line with other literature, Heinze, Wallisch, and Dunkler excluded
-one individual from the original data set with an implausible height
-observation. The team also converted the units of some variables for the
-approach detailed below.
+Before using the data, we are going to modify it a bit by adding some
+simulated genetic data and nursing-centric covariates to support
+discussion throughout this fictitious case study (detailed above under
+“explanatory predictors”).
 
 ``` r
 # Load data ------------------------------------------------------
@@ -67,10 +119,8 @@ case1.bodyfat <- read.table("data/case1_bodyfat.txt", header = T, sep = ";")
 n <- nrow(case1.bodyfat)
 ```
 
-Before using the data, we are going to modify it a bit by adding some
-simulated genetic data and nursing-centric covariates.
-
 ``` r
+# Expand data ----------------------------------------------------
 # Set seed for reproducibility
 set.seed(123)
 
@@ -158,64 +208,8 @@ head(case1.bodyfat)
     ## 6      15.163286
 
 Our example data set consists of 502 participants with data on body fat
-percentage (variable name `siri_simulated`, our outcome of interest) and
-several candidate variables hypothesized to be related to body fat
-percentage.
-
-# Define study question
-
-Objective: The study aims to examine how genetic variation
-(obesity-related SNPs), anthropometric measures, social drivers of
-health (SDOH), and behavioral factors influence a continuous measure of
-fat mass in a sample of adults aged 22-81 years.
-
-Population: A sample of 502 adults, aged 22-81 years.
-
-Outcome Variable: \* siri_simulated (continuous)
-
-Explanatory Variables:
-
-1.  Genetics
-
-- rs1 to rs6: Obesity-related genetic markers (0 = no risk alleles, 1 =
-  one risk allele, 2 = two risk alleles).
-- Gene x Environment Effect: Interaction effect of rs1 and sleep
-  duration.
-
-2.  Demographics
-
-- Age: Continuous (years)
-
-3.  Anthropometrics
-
-- Weight: Continuous (kg).
-- Height: Continuous (cm).
-- Circumference Values: \*\* Neck, abdomen, thigh, knee, ankle, biceps,
-  forearm, wrist: Continuous (cm).
-
-4.  Family dynamics
-
-- Number of Children in Household: Continuous, the total number of
-  children living in the household.
-- Family Mealtime Frequency: Continuous, number of family meals per week
-  (0–21, right-skewed).
-
-5.  Environmental factors
-
-- Physical Environment Score: Composite continuous score, higher scores
-  indicate a safer and more exercise-friendly environment.
-
-6.  Psychosocial factors
-
-- Stress Level: Continuous, with higher scores indicating more stress.
-
-7.  Behavioral factors
-
-- Physical Activity Level: Continuous, hours per day spent on physical
-  activity.
-- Sleep Duration: Continuous, hours of sleep per night.
-- Healthy Eating Index: Continuous, with higher scores indicating better
-  eating habits.
+(variable name `siri_simulated`, our outcome of interest) and several
+candidate variables hypothesized to be related to body fat.
 
 # Analyses
 
@@ -277,281 +271,223 @@ Let’s examine it now.
 
 ``` r
 # Correlation structure --------------------------------------------
-pander(cor(case1.bodyfat[, pred]))
+#pander(cor(case1.bodyfat[, pred]))
+cor(case1.bodyfat[, pred])
 ```
 
-|                                |    age    | weight_kg | height_cm |   neck    |
-|:------------------------------:|:---------:|:---------:|:---------:|:---------:|
-|            **age**             |     1     | -0.01247  |  -0.2645  |  0.1228   |
-|         **weight_kg**          | -0.01247  |     1     |  0.4687   |  0.8046   |
-|         **height_cm**          |  -0.2645  |  0.4687   |     1     |   0.264   |
-|            **neck**            |  0.1228   |  0.8046   |   0.264   |     1     |
-|          **abdomen**           |  0.2343   |  0.8839   |  0.1426   |  0.7328   |
-|           **thigh**            |  -0.1779  |   0.863   |  0.3357   |  0.6487   |
-|            **knee**            | 0.008152  |  0.8352   |  0.5158   |   0.629   |
-|           **ankle**            |  -0.1235  |  0.6609   |  0.4197   |  0.4869   |
-|           **biceps**           | -0.01943  |  0.8078   |  0.2773   |  0.7315   |
-|          **forearm**           |  -0.1262  |  0.6209   |  0.2644   |  0.6174   |
-|           **wrist**            |  0.2168   |  0.7238   |  0.3819   |  0.7346   |
-|            **rs1**             | -0.01434  | 0.007234  |  0.09656  |  0.02961  |
-|            **rs2**             |  -0.0263  |  -0.041   |  0.04244  | -0.009341 |
-|            **rs3**             |  0.1448   |  -0.1237  |  -0.1345  | -0.03345  |
-|            **rs4**             | -0.009383 | -0.02824  |  0.04312  | 0.004635  |
-|            **rs5**             | -0.01368  |  -0.1076  | 0.003148  |  -0.0907  |
-|            **rs6**             |  0.06632  | -0.002413 | -0.07218  |  0.04036  |
-|        **num_children**        |  0.01667  | 0.008047  |  0.05035  | -0.07331  |
-|    **family_mealtime_freq**    |  0.0355   | -0.02631  | -0.03879  |  0.05389  |
-| **physical_environment_score** | -0.02363  | -0.04044  |  -0.1022  | -0.001796 |
-|        **stress_level**        | -0.06532  | -0.08934  |  -0.147   | -0.08747  |
-|     **physical_activity**      |  -0.1253  |  0.1012   |  0.06056  |  0.06895  |
-|       **sleep_duration**       | -0.04537  |  0.05496  | -0.009391 |  0.1458   |
-|    **healthy_eating_index**    |  0.01366  | -0.001971 | 0.009323  | -0.008544 |
-|         **gxe_effect**         | -0.03343  |  0.03397  |  0.1271   |  0.0835   |
-
-Table continues below
-
-|                                |  abdomen  |   thigh   |   knee    |   ankle   |
-|:------------------------------:|:---------:|:---------:|:---------:|:---------:|
-|            **age**             |  0.2343   |  -0.1779  | 0.008152  |  -0.1235  |
-|         **weight_kg**          |  0.8839   |   0.863   |  0.8352   |  0.6609   |
-|         **height_cm**          |  0.1426   |  0.3357   |  0.5158   |  0.4197   |
-|            **neck**            |  0.7328   |  0.6487   |   0.629   |  0.4869   |
-|          **abdomen**           |     1     |  0.7507   |  0.6875   |  0.4838   |
-|           **thigh**            |  0.7507   |     1     |  0.7941   |  0.5947   |
-|            **knee**            |  0.6875   |  0.7941   |     1     |  0.6623   |
-|           **ankle**            |  0.4838   |  0.5947   |  0.6623   |     1     |
-|           **biceps**           |  0.6883   |  0.7662   |  0.6667   |  0.5101   |
-|          **forearm**           |   0.476   |  0.5393   |  0.5013   |  0.4396   |
-|           **wrist**            |  0.5975   |  0.5608   |  0.6605   |  0.6013   |
-|            **rs1**             | -0.01009  |  0.03311  | 0.008891  | -0.01349  |
-|            **rs2**             | -0.08265  | -0.04418  | -0.03461  |  -0.0314  |
-|            **rs3**             | -0.07015  |  -0.1288  | -0.08027  |  -0.1296  |
-|            **rs4**             | -0.03774  | -0.004073 | -0.005299 | -0.06772  |
-|            **rs5**             |  -0.1226  |  -0.0847  | -0.08809  |  -0.1073  |
-|            **rs6**             |  0.02775  | -0.03063  | -0.02925  | -0.04941  |
-|        **num_children**        | 0.0008927 | -0.05564  |  0.04627  |   0.122   |
-|    **family_mealtime_freq**    | -0.02505  | -0.06108  | 0.003448  | -0.05825  |
-| **physical_environment_score** | -0.02332  | -0.04462  |  -0.1356  | -0.05918  |
-|        **stress_level**        | -0.04379  | -0.06745  |  -0.1395  | -0.07937  |
-|     **physical_activity**      |  0.05438  |  0.0898   |  0.03015  |  0.0824   |
-|       **sleep_duration**       |  0.07987  |  0.01817  | -0.01762  |  -0.0371  |
-|    **healthy_eating_index**    | -0.04941  | -0.01847  |  0.01922  |  0.01243  |
-|         **gxe_effect**         |  0.01293  |  0.03944  |  0.01225  | 0.0009521 |
-
-Table continues below
-
-|                                |  biceps  |  forearm  |   wrist   |   rs1    |
-|:------------------------------:|:--------:|:---------:|:---------:|:--------:|
-|            **age**             | -0.01943 |  -0.1262  |  0.2168   | -0.01434 |
-|         **weight_kg**          |  0.8078  |  0.6209   |  0.7238   | 0.007234 |
-|         **height_cm**          |  0.2773  |  0.2644   |  0.3819   | 0.09656  |
-|            **neck**            |  0.7315  |  0.6174   |  0.7346   | 0.02961  |
-|          **abdomen**           |  0.6883  |   0.476   |  0.5975   | -0.01009 |
-|           **thigh**            |  0.7662  |  0.5393   |  0.5608   | 0.03311  |
-|            **knee**            |  0.6667  |  0.5013   |  0.6605   | 0.008891 |
-|           **ankle**            |  0.5101  |  0.4396   |  0.6013   | -0.01349 |
-|           **biceps**           |    1     |  0.6434   |  0.6338   | 0.01249  |
-|          **forearm**           |  0.6434  |     1     |   0.525   | -0.03855 |
-|           **wrist**            |  0.6338  |   0.525   |     1     | -0.05724 |
-|            **rs1**             | 0.01249  | -0.03855  | -0.05724  |    1     |
-|            **rs2**             | -0.03105 |  -0.1358  | -0.002128 | 0.08062  |
-|            **rs3**             | -0.1113  |  -0.1008  | -0.03533  | 0.003719 |
-|            **rs4**             | 0.05571  |  0.02124  |  0.03285  |  0.1287  |
-|            **rs5**             | -0.07457 |  -0.1288  | -0.05387  | 0.08475  |
-|            **rs6**             | -0.01449 | 0.006098  | -0.01727  | 0.03585  |
-|        **num_children**        | -0.03495 | -0.008623 |  0.04174  | -0.1206  |
-|    **family_mealtime_freq**    | -0.00216 | -0.02213  |  0.01035  | 0.03253  |
-| **physical_environment_score** | 0.01088  | -0.01056  | -0.07075  | 0.02125  |
-|        **stress_level**        | -0.06364 |  0.02742  |  -0.1021  | -0.1386  |
-|     **physical_activity**      |  0.1093  |  0.1041   |  0.08991  | -0.1103  |
-|       **sleep_duration**       | 0.06898  |  0.1191   | -0.009479 | 0.08817  |
-|    **healthy_eating_index**    | 0.02064  |  0.01588  |  0.08796  | -0.08155 |
-|         **gxe_effect**         | 0.04156  | 0.0005114 | -0.03647  |  0.9521  |
-
-Table continues below
-
-|                                |    rs2    |    rs3    |    rs4    |   rs5    |
-|:------------------------------:|:---------:|:---------:|:---------:|:--------:|
-|            **age**             |  -0.0263  |  0.1448   | -0.009383 | -0.01368 |
-|         **weight_kg**          |  -0.041   |  -0.1237  | -0.02824  | -0.1076  |
-|         **height_cm**          |  0.04244  |  -0.1345  |  0.04312  | 0.003148 |
-|            **neck**            | -0.009341 | -0.03345  | 0.004635  | -0.0907  |
-|          **abdomen**           | -0.08265  | -0.07015  | -0.03774  | -0.1226  |
-|           **thigh**            | -0.04418  |  -0.1288  | -0.004073 | -0.0847  |
-|            **knee**            | -0.03461  | -0.08027  | -0.005299 | -0.08809 |
-|           **ankle**            |  -0.0314  |  -0.1296  | -0.06772  | -0.1073  |
-|           **biceps**           | -0.03105  |  -0.1113  |  0.05571  | -0.07457 |
-|          **forearm**           |  -0.1358  |  -0.1008  |  0.02124  | -0.1288  |
-|           **wrist**            | -0.002128 | -0.03533  |  0.03285  | -0.05387 |
-|            **rs1**             |  0.08062  | 0.003719  |  0.1287   | 0.08475  |
-|            **rs2**             |     1     |  0.1411   |  0.02408  | 0.006181 |
-|            **rs3**             |  0.1411   |     1     | 0.001738  | 0.04025  |
-|            **rs4**             |  0.02408  | 0.001738  |     1     | 0.07163  |
-|            **rs5**             | 0.006181  |  0.04025  |  0.07163  |    1     |
-|            **rs6**             |  0.02182  |  -0.0139  | -0.05527  | -0.01235 |
-|        **num_children**        | -0.05755  | -0.08919  |  0.01325  | -0.03335 |
-|    **family_mealtime_freq**    |  -0.0412  | -0.04675  |  -0.1007  | -0.0598  |
-| **physical_environment_score** |  0.06366  | -0.04117  | -0.07579  | -0.05139 |
-|        **stress_level**        |  0.1337   |  0.02588  |  0.1737   | -0.08746 |
-|     **physical_activity**      | -0.03517  |  -0.1039  |  0.0457   | -0.1049  |
-|       **sleep_duration**       |  -0.142   |  0.01076  |   0.106   | -0.1257  |
-|    **healthy_eating_index**    |  0.04107  |  0.1098   |  0.0307   | -0.09141 |
-|         **gxe_effect**         |  0.03138  | -0.008795 |  0.1739   | 0.04818  |
-
-Table continues below
-
-|                                |    rs6    | num_children |
-|:------------------------------:|:---------:|:------------:|
-|            **age**             |  0.06632  |   0.01667    |
-|         **weight_kg**          | -0.002413 |   0.008047   |
-|         **height_cm**          | -0.07218  |   0.05035    |
-|            **neck**            |  0.04036  |   -0.07331   |
-|          **abdomen**           |  0.02775  |  0.0008927   |
-|           **thigh**            | -0.03063  |   -0.05564   |
-|            **knee**            | -0.02925  |   0.04627    |
-|           **ankle**            | -0.04941  |    0.122     |
-|           **biceps**           | -0.01449  |   -0.03495   |
-|          **forearm**           | 0.006098  |  -0.008623   |
-|           **wrist**            | -0.01727  |   0.04174    |
-|            **rs1**             |  0.03585  |   -0.1206    |
-|            **rs2**             |  0.02182  |   -0.05755   |
-|            **rs3**             |  -0.0139  |   -0.08919   |
-|            **rs4**             | -0.05527  |   0.01325    |
-|            **rs5**             | -0.01235  |   -0.03335   |
-|            **rs6**             |     1     |   0.06119    |
-|        **num_children**        |  0.06119  |      1       |
-|    **family_mealtime_freq**    |  0.1483   |   -0.0524    |
-| **physical_environment_score** |  0.05591  |    -0.13     |
-|        **stress_level**        |  0.02225  |   -0.07869   |
-|     **physical_activity**      |  0.01894  |   0.02586    |
-|       **sleep_duration**       | -0.003312 |   0.07246    |
-|    **healthy_eating_index**    |  0.0138   |   0.01976    |
-|         **gxe_effect**         |  0.02395  |   -0.1018    |
-
-Table continues below
-
-|                                | family_mealtime_freq |
-|:------------------------------:|:--------------------:|
-|            **age**             |        0.0355        |
-|         **weight_kg**          |       -0.02631       |
-|         **height_cm**          |       -0.03879       |
-|            **neck**            |       0.05389        |
-|          **abdomen**           |       -0.02505       |
-|           **thigh**            |       -0.06108       |
-|            **knee**            |       0.003448       |
-|           **ankle**            |       -0.05825       |
-|           **biceps**           |       -0.00216       |
-|          **forearm**           |       -0.02213       |
-|           **wrist**            |       0.01035        |
-|            **rs1**             |       0.03253        |
-|            **rs2**             |       -0.0412        |
-|            **rs3**             |       -0.04675       |
-|            **rs4**             |       -0.1007        |
-|            **rs5**             |       -0.0598        |
-|            **rs6**             |        0.1483        |
-|        **num_children**        |       -0.0524        |
-|    **family_mealtime_freq**    |          1           |
-| **physical_environment_score** |       0.008395       |
-|        **stress_level**        |       -0.05178       |
-|     **physical_activity**      |      -0.002868       |
-|       **sleep_duration**       |       -0.07952       |
-|    **healthy_eating_index**    |       0.01505        |
-|         **gxe_effect**         |       -0.02233       |
-
-Table continues below
-
-|                                | physical_environment_score | stress_level |
-|:------------------------------:|:--------------------------:|:------------:|
-|            **age**             |          -0.02363          |   -0.06532   |
-|         **weight_kg**          |          -0.04044          |   -0.08934   |
-|         **height_cm**          |          -0.1022           |    -0.147    |
-|            **neck**            |         -0.001796          |   -0.08747   |
-|          **abdomen**           |          -0.02332          |   -0.04379   |
-|           **thigh**            |          -0.04462          |   -0.06745   |
-|            **knee**            |          -0.1356           |   -0.1395    |
-|           **ankle**            |          -0.05918          |   -0.07937   |
-|           **biceps**           |          0.01088           |   -0.06364   |
-|          **forearm**           |          -0.01056          |   0.02742    |
-|           **wrist**            |          -0.07075          |   -0.1021    |
-|            **rs1**             |          0.02125           |   -0.1386    |
-|            **rs2**             |          0.06366           |    0.1337    |
-|            **rs3**             |          -0.04117          |   0.02588    |
-|            **rs4**             |          -0.07579          |    0.1737    |
-|            **rs5**             |          -0.05139          |   -0.08746   |
-|            **rs6**             |          0.05591           |   0.02225    |
-|        **num_children**        |           -0.13            |   -0.07869   |
-|    **family_mealtime_freq**    |          0.008395          |   -0.05178   |
-| **physical_environment_score** |             1              |   0.09289    |
-|        **stress_level**        |          0.09289           |      1       |
-|     **physical_activity**      |          0.07132           |   -0.02681   |
-|       **sleep_duration**       |          -0.09233          |   0.02224    |
-|    **healthy_eating_index**    |          -0.08028          |   0.06358    |
-|         **gxe_effect**         |          -0.02522          |   -0.1467    |
-
-Table continues below
-
-|                                | physical_activity | sleep_duration |
-|:------------------------------:|:-----------------:|:--------------:|
-|            **age**             |      -0.1253      |    -0.04537    |
-|         **weight_kg**          |      0.1012       |    0.05496     |
-|         **height_cm**          |      0.06056      |   -0.009391    |
-|            **neck**            |      0.06895      |     0.1458     |
-|          **abdomen**           |      0.05438      |    0.07987     |
-|           **thigh**            |      0.0898       |    0.01817     |
-|            **knee**            |      0.03015      |    -0.01762    |
-|           **ankle**            |      0.0824       |    -0.0371     |
-|           **biceps**           |      0.1093       |    0.06898     |
-|          **forearm**           |      0.1041       |     0.1191     |
-|           **wrist**            |      0.08991      |   -0.009479    |
-|            **rs1**             |      -0.1103      |    0.08817     |
-|            **rs2**             |     -0.03517      |     -0.142     |
-|            **rs3**             |      -0.1039      |    0.01076     |
-|            **rs4**             |      0.0457       |     0.106      |
-|            **rs5**             |      -0.1049      |    -0.1257     |
-|            **rs6**             |      0.01894      |   -0.003312    |
-|        **num_children**        |      0.02586      |    0.07246     |
-|    **family_mealtime_freq**    |     -0.002868     |    -0.07952    |
-| **physical_environment_score** |      0.07132      |    -0.09233    |
-|        **stress_level**        |     -0.02681      |    0.02224     |
-|     **physical_activity**      |         1         |     0.1047     |
-|       **sleep_duration**       |      0.1047       |       1        |
-|    **healthy_eating_index**    |      0.05909      |    -0.0411     |
-|         **gxe_effect**         |     -0.07217      |     0.2956     |
-
-Table continues below
-
-|                                | healthy_eating_index | gxe_effect |
-|:------------------------------:|:--------------------:|:----------:|
-|            **age**             |       0.01366        |  -0.03343  |
-|         **weight_kg**          |      -0.001971       |  0.03397   |
-|         **height_cm**          |       0.009323       |   0.1271   |
-|            **neck**            |      -0.008544       |   0.0835   |
-|          **abdomen**           |       -0.04941       |  0.01293   |
-|           **thigh**            |       -0.01847       |  0.03944   |
-|            **knee**            |       0.01922        |  0.01225   |
-|           **ankle**            |       0.01243        | 0.0009521  |
-|           **biceps**           |       0.02064        |  0.04156   |
-|          **forearm**           |       0.01588        | 0.0005114  |
-|           **wrist**            |       0.08796        |  -0.03647  |
-|            **rs1**             |       -0.08155       |   0.9521   |
-|            **rs2**             |       0.04107        |  0.03138   |
-|            **rs3**             |        0.1098        | -0.008795  |
-|            **rs4**             |        0.0307        |   0.1739   |
-|            **rs5**             |       -0.09141       |  0.04818   |
-|            **rs6**             |        0.0138        |  0.02395   |
-|        **num_children**        |       0.01976        |  -0.1018   |
-|    **family_mealtime_freq**    |       0.01505        |  -0.02233  |
-| **physical_environment_score** |       -0.08028       |  -0.02522  |
-|        **stress_level**        |       0.06358        |  -0.1467   |
-|     **physical_activity**      |       0.05909        |  -0.07217  |
-|       **sleep_duration**       |       -0.0411        |   0.2956   |
-|    **healthy_eating_index**    |          1           |  -0.07845  |
-|         **gxe_effect**         |       -0.07845       |     1      |
+    ##                                     age    weight_kg    height_cm         neck
+    ## age                         1.000000000 -0.012473289 -0.264547431  0.122836898
+    ## weight_kg                  -0.012473289  1.000000000  0.468743490  0.804624860
+    ## height_cm                  -0.264547431  0.468743490  1.000000000  0.263999656
+    ## neck                        0.122836898  0.804624860  0.263999656  1.000000000
+    ## abdomen                     0.234332474  0.883903886  0.142581296  0.732777357
+    ## thigh                      -0.177907106  0.862967624  0.335706876  0.648702039
+    ## knee                        0.008151846  0.835245387  0.515833559  0.628996347
+    ## ankle                      -0.123522030  0.660915275  0.419694902  0.486881423
+    ## biceps                     -0.019432557  0.807846989  0.277255377  0.731546394
+    ## forearm                    -0.126198361  0.620947178  0.264378229  0.617401350
+    ## wrist                       0.216788522  0.723783621  0.381868268  0.734571058
+    ## rs1                        -0.014343073  0.007233533  0.096563915  0.029609351
+    ## rs2                        -0.026299331 -0.041001505  0.042435432 -0.009340582
+    ## rs3                         0.144822514 -0.123739448 -0.134514174 -0.033448808
+    ## rs4                        -0.009382545 -0.028238618  0.043123760  0.004635053
+    ## rs5                        -0.013680142 -0.107566007  0.003148046 -0.090704416
+    ## rs6                         0.066318059 -0.002413175 -0.072183956  0.040363150
+    ## num_children                0.016674833  0.008047266  0.050349829 -0.073308479
+    ## family_mealtime_freq        0.035496345 -0.026312494 -0.038792570  0.053891667
+    ## physical_environment_score -0.023625937 -0.040443375 -0.102227512 -0.001795568
+    ## stress_level               -0.065317726 -0.089343332 -0.146996829 -0.087473031
+    ## physical_activity          -0.125333352  0.101208284  0.060560032  0.068947654
+    ## sleep_duration             -0.045370518  0.054958471 -0.009390837  0.145842595
+    ## healthy_eating_index        0.013656134 -0.001971380  0.009322603 -0.008543540
+    ## gxe_effect                 -0.033433580  0.033971210  0.127129015  0.083502051
+    ##                                 abdomen        thigh         knee         ankle
+    ## age                         0.234332474 -0.177907106  0.008151846 -0.1235220300
+    ## weight_kg                   0.883903886  0.862967624  0.835245387  0.6609152748
+    ## height_cm                   0.142581296  0.335706876  0.515833559  0.4196949023
+    ## neck                        0.732777357  0.648702039  0.628996347  0.4868814232
+    ## abdomen                     1.000000000  0.750725439  0.687544568  0.4837914678
+    ## thigh                       0.750725439  1.000000000  0.794117700  0.5947223930
+    ## knee                        0.687544568  0.794117700  1.000000000  0.6623299180
+    ## ankle                       0.483791468  0.594722393  0.662329918  1.0000000000
+    ## biceps                      0.688318392  0.766172241  0.666693059  0.5101157250
+    ## forearm                     0.475999211  0.539337347  0.501273797  0.4395966308
+    ## wrist                       0.597521122  0.560753638  0.660541013  0.6013304640
+    ## rs1                        -0.010085843  0.033114011  0.008891214 -0.0134901879
+    ## rs2                        -0.082647901 -0.044182519 -0.034609443 -0.0314046737
+    ## rs3                        -0.070147640 -0.128759229 -0.080267925 -0.1295937280
+    ## rs4                        -0.037744344 -0.004073317 -0.005299212 -0.0677183590
+    ## rs5                        -0.122643533 -0.084702744 -0.088092018 -0.1072558904
+    ## rs6                         0.027754029 -0.030633326 -0.029251914 -0.0494071946
+    ## num_children                0.000892749 -0.055640412  0.046270922  0.1219989797
+    ## family_mealtime_freq       -0.025047951 -0.061080829  0.003447670 -0.0582530378
+    ## physical_environment_score -0.023315808 -0.044621040 -0.135588647 -0.0591792502
+    ## stress_level               -0.043791851 -0.067454550 -0.139450496 -0.0793668354
+    ## physical_activity           0.054384206  0.089799853  0.030150657  0.0823963070
+    ## sleep_duration              0.079872316  0.018174307 -0.017622921 -0.0370978305
+    ## healthy_eating_index       -0.049410790 -0.018465531  0.019224538  0.0124299860
+    ## gxe_effect                  0.012926626  0.039442397  0.012246082  0.0009520716
+    ##                                  biceps       forearm        wrist          rs1
+    ## age                        -0.019432557 -0.1261983608  0.216788522 -0.014343073
+    ## weight_kg                   0.807846989  0.6209471785  0.723783621  0.007233533
+    ## height_cm                   0.277255377  0.2643782291  0.381868268  0.096563915
+    ## neck                        0.731546394  0.6174013504  0.734571058  0.029609351
+    ## abdomen                     0.688318392  0.4759992106  0.597521122 -0.010085843
+    ## thigh                       0.766172241  0.5393373473  0.560753638  0.033114011
+    ## knee                        0.666693059  0.5012737970  0.660541013  0.008891214
+    ## ankle                       0.510115725  0.4395966308  0.601330464 -0.013490188
+    ## biceps                      1.000000000  0.6434320138  0.633792033  0.012488322
+    ## forearm                     0.643432014  1.0000000000  0.525030408 -0.038550708
+    ## wrist                       0.633792033  0.5250304079  1.000000000 -0.057242941
+    ## rs1                         0.012488322 -0.0385507082 -0.057242941  1.000000000
+    ## rs2                        -0.031047219 -0.1358093360 -0.002127615  0.080617496
+    ## rs3                        -0.111279083 -0.1008329570 -0.035326076  0.003718642
+    ## rs4                         0.055713614  0.0212378102  0.032854072  0.128711492
+    ## rs5                        -0.074571711 -0.1288108334 -0.053868442  0.084754736
+    ## rs6                        -0.014489094  0.0060975130 -0.017267149  0.035853637
+    ## num_children               -0.034953690 -0.0086225282  0.041743492 -0.120640676
+    ## family_mealtime_freq       -0.002159597 -0.0221277339  0.010354974  0.032534665
+    ## physical_environment_score  0.010882735 -0.0105580046 -0.070752598  0.021249587
+    ## stress_level               -0.063635038  0.0274210776 -0.102133617 -0.138599663
+    ## physical_activity           0.109311091  0.1040988834  0.089911849 -0.110336669
+    ## sleep_duration              0.068982842  0.1190816332 -0.009478954  0.088170187
+    ## healthy_eating_index        0.020644023  0.0158770827  0.087955713 -0.081554334
+    ## gxe_effect                  0.041564757  0.0005113725 -0.036474320  0.952142496
+    ##                                     rs2          rs3          rs4          rs5
+    ## age                        -0.026299331  0.144822514 -0.009382545 -0.013680142
+    ## weight_kg                  -0.041001505 -0.123739448 -0.028238618 -0.107566007
+    ## height_cm                   0.042435432 -0.134514174  0.043123760  0.003148046
+    ## neck                       -0.009340582 -0.033448808  0.004635053 -0.090704416
+    ## abdomen                    -0.082647901 -0.070147640 -0.037744344 -0.122643533
+    ## thigh                      -0.044182519 -0.128759229 -0.004073317 -0.084702744
+    ## knee                       -0.034609443 -0.080267925 -0.005299212 -0.088092018
+    ## ankle                      -0.031404674 -0.129593728 -0.067718359 -0.107255890
+    ## biceps                     -0.031047219 -0.111279083  0.055713614 -0.074571711
+    ## forearm                    -0.135809336 -0.100832957  0.021237810 -0.128810833
+    ## wrist                      -0.002127615 -0.035326076  0.032854072 -0.053868442
+    ## rs1                         0.080617496  0.003718642  0.128711492  0.084754736
+    ## rs2                         1.000000000  0.141129523  0.024081185  0.006180764
+    ## rs3                         0.141129523  1.000000000  0.001738431  0.040253050
+    ## rs4                         0.024081185  0.001738431  1.000000000  0.071634009
+    ## rs5                         0.006180764  0.040253050  0.071634009  1.000000000
+    ## rs6                         0.021816198 -0.013903627 -0.055273986 -0.012352109
+    ## num_children               -0.057551679 -0.089194721  0.013251446 -0.033349378
+    ## family_mealtime_freq       -0.041202999 -0.046748157 -0.100697438 -0.059803816
+    ## physical_environment_score  0.063656022 -0.041173078 -0.075791199 -0.051385351
+    ## stress_level                0.133709014  0.025882212  0.173746386 -0.087456117
+    ## physical_activity          -0.035172273 -0.103936068  0.045695936 -0.104946723
+    ## sleep_duration             -0.141980817  0.010764538  0.105985308 -0.125656683
+    ## healthy_eating_index        0.041070429  0.109829390  0.030700543 -0.091408781
+    ## gxe_effect                  0.031382391 -0.008795107  0.173892850  0.048180754
+    ##                                     rs6 num_children family_mealtime_freq
+    ## age                         0.066318059  0.016674833          0.035496345
+    ## weight_kg                  -0.002413175  0.008047266         -0.026312494
+    ## height_cm                  -0.072183956  0.050349829         -0.038792570
+    ## neck                        0.040363150 -0.073308479          0.053891667
+    ## abdomen                     0.027754029  0.000892749         -0.025047951
+    ## thigh                      -0.030633326 -0.055640412         -0.061080829
+    ## knee                       -0.029251914  0.046270922          0.003447670
+    ## ankle                      -0.049407195  0.121998980         -0.058253038
+    ## biceps                     -0.014489094 -0.034953690         -0.002159597
+    ## forearm                     0.006097513 -0.008622528         -0.022127734
+    ## wrist                      -0.017267149  0.041743492          0.010354974
+    ## rs1                         0.035853637 -0.120640676          0.032534665
+    ## rs2                         0.021816198 -0.057551679         -0.041202999
+    ## rs3                        -0.013903627 -0.089194721         -0.046748157
+    ## rs4                        -0.055273986  0.013251446         -0.100697438
+    ## rs5                        -0.012352109 -0.033349378         -0.059803816
+    ## rs6                         1.000000000  0.061192723          0.148288868
+    ## num_children                0.061192723  1.000000000         -0.052400788
+    ## family_mealtime_freq        0.148288868 -0.052400788          1.000000000
+    ## physical_environment_score  0.055913529 -0.130034978          0.008394799
+    ## stress_level                0.022249600 -0.078688954         -0.051780538
+    ## physical_activity           0.018941312  0.025862691         -0.002868198
+    ## sleep_duration             -0.003311883  0.072456924         -0.079520005
+    ## healthy_eating_index        0.013804103  0.019758770          0.015049586
+    ## gxe_effect                  0.023946359 -0.101821384         -0.022328980
+    ##                            physical_environment_score stress_level
+    ## age                                      -0.023625937  -0.06531773
+    ## weight_kg                                -0.040443375  -0.08934333
+    ## height_cm                                -0.102227512  -0.14699683
+    ## neck                                     -0.001795568  -0.08747303
+    ## abdomen                                  -0.023315808  -0.04379185
+    ## thigh                                    -0.044621040  -0.06745455
+    ## knee                                     -0.135588647  -0.13945050
+    ## ankle                                    -0.059179250  -0.07936684
+    ## biceps                                    0.010882735  -0.06363504
+    ## forearm                                  -0.010558005   0.02742108
+    ## wrist                                    -0.070752598  -0.10213362
+    ## rs1                                       0.021249587  -0.13859966
+    ## rs2                                       0.063656022   0.13370901
+    ## rs3                                      -0.041173078   0.02588221
+    ## rs4                                      -0.075791199   0.17374639
+    ## rs5                                      -0.051385351  -0.08745612
+    ## rs6                                       0.055913529   0.02224960
+    ## num_children                             -0.130034978  -0.07868895
+    ## family_mealtime_freq                      0.008394799  -0.05178054
+    ## physical_environment_score                1.000000000   0.09288927
+    ## stress_level                              0.092889275   1.00000000
+    ## physical_activity                         0.071322825  -0.02681089
+    ## sleep_duration                           -0.092325758   0.02224425
+    ## healthy_eating_index                     -0.080280844   0.06358454
+    ## gxe_effect                               -0.025224826  -0.14670587
+    ##                            physical_activity sleep_duration
+    ## age                             -0.125333352   -0.045370518
+    ## weight_kg                        0.101208284    0.054958471
+    ## height_cm                        0.060560032   -0.009390837
+    ## neck                             0.068947654    0.145842595
+    ## abdomen                          0.054384206    0.079872316
+    ## thigh                            0.089799853    0.018174307
+    ## knee                             0.030150657   -0.017622921
+    ## ankle                            0.082396307   -0.037097831
+    ## biceps                           0.109311091    0.068982842
+    ## forearm                          0.104098883    0.119081633
+    ## wrist                            0.089911849   -0.009478954
+    ## rs1                             -0.110336669    0.088170187
+    ## rs2                             -0.035172273   -0.141980817
+    ## rs3                             -0.103936068    0.010764538
+    ## rs4                              0.045695936    0.105985308
+    ## rs5                             -0.104946723   -0.125656683
+    ## rs6                              0.018941312   -0.003311883
+    ## num_children                     0.025862691    0.072456924
+    ## family_mealtime_freq            -0.002868198   -0.079520005
+    ## physical_environment_score       0.071322825   -0.092325758
+    ## stress_level                    -0.026810891    0.022244246
+    ## physical_activity                1.000000000    0.104744558
+    ## sleep_duration                   0.104744558    1.000000000
+    ## healthy_eating_index             0.059091300   -0.041097518
+    ## gxe_effect                      -0.072172554    0.295644909
+    ##                            healthy_eating_index    gxe_effect
+    ## age                                 0.013656134 -0.0334335797
+    ## weight_kg                          -0.001971380  0.0339712097
+    ## height_cm                           0.009322603  0.1271290154
+    ## neck                               -0.008543540  0.0835020508
+    ## abdomen                            -0.049410790  0.0129266255
+    ## thigh                              -0.018465531  0.0394423971
+    ## knee                                0.019224538  0.0122460819
+    ## ankle                               0.012429986  0.0009520716
+    ## biceps                              0.020644023  0.0415647570
+    ## forearm                             0.015877083  0.0005113725
+    ## wrist                               0.087955713 -0.0364743203
+    ## rs1                                -0.081554334  0.9521424955
+    ## rs2                                 0.041070429  0.0313823915
+    ## rs3                                 0.109829390 -0.0087951067
+    ## rs4                                 0.030700543  0.1738928501
+    ## rs5                                -0.091408781  0.0481807544
+    ## rs6                                 0.013804103  0.0239463588
+    ## num_children                        0.019758770 -0.1018213842
+    ## family_mealtime_freq                0.015049586 -0.0223289804
+    ## physical_environment_score         -0.080280844 -0.0252248257
+    ## stress_level                        0.063584541 -0.1467058707
+    ## physical_activity                   0.059091300 -0.0721725536
+    ## sleep_duration                     -0.041097518  0.2956449093
+    ## healthy_eating_index                1.000000000 -0.0784497023
+    ## gxe_effect                         -0.078449702  1.0000000000
 
 ``` r
-cor_matrix <- cor(case1.bodyfat[, pred], use = "complete.obs")
-upper_tri <- cor_matrix[upper.tri(cor_matrix)]
-num_strong_correlations <- sum(upper_tri > 0.5)
+#cor_matrix <- cor(case1.bodyfat[, pred], use = "complete.obs")
+#upper_tri <- cor_matrix[upper.tri(cor_matrix)]
+#num_strong_correlations <- sum(upper_tri > 0.5)
 corrplot(round(cor(case1.bodyfat[, pred]),2))
 ```
 
@@ -560,17 +496,17 @@ corrplot(round(cor(case1.bodyfat[, pred]),2))
 An interesting feature of this data set is that many of the
 anthropometric measures are intrinsically correlated. For example,
 weight and abdomen circumference have a Pearson correlation coefficient
-of 0.88. Further, a group of 34 pairs have correlation coefficients
-greater than 0.5. As described above, these high correlations impose
-some challenges in model development and interpretation.
+of 0.88. Further, many pairs have correlation coefficients greater than
+0.5. As described above, these high correlations impose some challenges
+in model development and interpretation.
 
 ## Regression
 
 Based on our scientific expertise, let’s say we believe that abdominal
 circumference and height are two central independent variables for
-estimating body fat proportion. As such, we will not subject these to
-variable selection (i.e., we will “force” them into all models). We
-further believe that all other independent variables may be strongly
+estimating body fat. As such, we will not subject these to variable
+selection (i.e., we will “force” them into all models). We further
+believe that all other independent variables may be strongly
 interrelated and exchangeable when used for body fat estimation.
 Therefore, we will subject them to backward elimination with AIC as
 stopping criterion.
@@ -586,45 +522,7 @@ formula <- paste("siri_simulated~", paste(pred, collapse = "+"))
 full_mod <- lm(formula, data = case1.bodyfat, x = T, y = T)
 full_est <- coef(full_mod)
 full_se <- coef(summary(full_mod))[, "Std. Error"]
-pander(summary(full_mod))
-```
-
-|                                |  Estimate  | Std. Error | t value  | Pr(\>\|t\|) |
-|:------------------------------:|:----------:|:----------:|:--------:|:-----------:|
-|        **(Intercept)**         |   -17.44   |   15.22    |  -1.146  |   0.2524    |
-|            **age**             |  0.05218   |  0.02608   |  2.001   |   0.04601   |
-|         **weight_kg**          |  -0.2042   |   0.0974   |  -2.096  |   0.0366    |
-|         **height_cm**          |  -0.01277  |  0.05681   | -0.2248  |   0.8222    |
-|            **neck**            |  -0.3987   |   0.1964   |  -2.03   |   0.04289   |
-|          **abdomen**           |   0.9577   |  0.07291   |  13.14   |  7.553e-34  |
-|           **thigh**            |   0.1858   |   0.1073   |  1.732   |   0.08392   |
-|            **knee**            |  -0.1661   |   0.2006   | -0.8281  |    0.408    |
-|           **ankle**            |   -0.124   |   0.2163   | -0.5731  |   0.5669    |
-|           **biceps**           |   0.1464   |    0.14    |  1.046   |   0.2961    |
-|          **forearm**           |   0.4145   |   0.1495   |  2.773   |  0.005776   |
-|           **wrist**            |   -1.827   |   0.4413   |  -4.141  |  4.087e-05  |
-|            **rs1**             |   3.874    |   1.556    |   2.49   |   0.01312   |
-|            **rs2**             |   -1.274   |   0.3303   |  -3.857  |  0.0001308  |
-|            **rs3**             |   0.7106   |   0.3953   |  1.798   |   0.07288   |
-|            **rs4**             |  -0.3164   |   0.3285   | -0.9631  |    0.336    |
-|            **rs5**             |   0.8264   |   0.355    |  2.328   |   0.02035   |
-|            **rs6**             |   0.0807   |   0.3259   |  0.2477  |   0.8045    |
-|        **num_children**        |   0.1501   |   0.1549   |  0.9693  |   0.3329    |
-|    **family_mealtime_freq**    |  0.02933   |   0.0531   |  0.5524  |    0.581    |
-| **physical_environment_score** | -0.0004278 |  0.02195   | -0.01949 |   0.9845    |
-|        **stress_level**        |  -0.2942   |   0.1136   |  -2.589  |  0.009911   |
-|     **physical_activity**      |   0.3706   |   0.4843   |  0.7652  |   0.4445    |
-|       **sleep_duration**       |   -1.171   |   0.1414   |  -8.281  |  1.25e-15   |
-|    **healthy_eating_index**    |  0.03348   |  0.02266   |  1.478   |   0.1402    |
-|         **gxe_effect**         |   0.8576   |   0.1676   |  5.118   |  4.478e-07  |
-
-| Observations | Residual Std. Error | $R^2$  | Adjusted $R^2$ |
-|:------------:|:-------------------:|:------:|:--------------:|
-|     502      |        4.717        | 0.8469 |     0.8389     |
-
-Fitting linear model: formula
-
-``` r
+#pander(summary(full_mod))
 summary(full_mod)
 ```
 
@@ -673,7 +571,8 @@ summary(full_mod)
 
 ### Selected model
 
-Next, use backwards elimination to identify the “selected” model.
+Next, use backwards elimination to identify the “selected” model using
+R’s built in approach.
 
 ``` r
 # Selected model ---------------------------------------------------
@@ -683,38 +582,8 @@ sel_mod <- step(lm(formula, data = case1.bodyfat,  x=T,y=T),
                              # Force height and abdomen circumference into the model
                              lower = formula(siri_simulated~abdomen+height_cm)),
                 trace = 0)
-pander(summary(sel_mod))
-```
+#pander(summary(sel_mod))
 
-|                          | Estimate | Std. Error | t value | Pr(\>\|t\|) |
-|:------------------------:|:--------:|:----------:|:-------:|:-----------:|
-|     **(Intercept)**      |  -15.01  |   14.15    |  -1.06  |   0.2895    |
-|         **age**          | 0.04878  |  0.02479   |  1.967  |   0.04973   |
-|      **weight_kg**       | -0.1879  |  0.08853   | -2.123  |   0.03427   |
-|      **height_cm**       | -0.04205 |  0.05298   | -0.7936 |   0.4278    |
-|         **neck**         | -0.3581  |   0.1869   | -1.916  |   0.05594   |
-|       **abdomen**        |  0.949   |  0.06988   |  13.58  |  7.884e-36  |
-|        **thigh**         |  0.1473  |  0.09353   |  1.575  |    0.116    |
-|       **forearm**        |  0.4439  |   0.1445   |  3.071  |  0.002251   |
-|        **wrist**         |  -1.92   |   0.4151   | -4.625  |  4.805e-06  |
-|         **rs1**          |  4.094   |   1.486    |  2.754  |  0.006109   |
-|         **rs2**          |  -1.261  |   0.3271   | -3.855  |  0.0001315  |
-|         **rs3**          |  0.6013  |   0.3879   |  1.55   |   0.1218    |
-|         **rs5**          |  0.8003  |   0.3469   |  2.307  |   0.02149   |
-|     **stress_level**     | -0.3297  |   0.1086   | -3.034  |   0.00254   |
-|    **sleep_duration**    |  -1.138  |   0.1387   | -8.208  |  2.044e-15  |
-| **healthy_eating_index** | 0.03545  |   0.0224   |  1.582  |   0.1142    |
-|      **gxe_effect**      |  0.824   |   0.1593   |  5.173  |  3.378e-07  |
-
-| Observations | Residual Std. Error | $R^2$  | Adjusted $R^2$ |
-|:------------:|:-------------------:|:------:|:--------------:|
-|     502      |        4.698        | 0.8453 |     0.8402     |
-
-Fitting linear model: siri_simulated ~ age + weight_kg + height_cm +
-neck + abdomen + thigh + forearm + wrist + rs1 + rs2 + rs3 + rs5 +
-stress_level + sleep_duration + healthy_eating_index + gxe_effect
-
-``` r
 sel_est <- coef(sel_mod)[c("(Intercept)", pred)]
 sel_est[is.na(sel_est)] <- 0
 names(sel_est) <- c("(Intercept)", pred)
@@ -771,12 +640,12 @@ those if we a priori selected the variables for glm)
 ### Bootstrap model
 
 Finally, repeat backwards elimination using bootstrapping for a
-stability investigation and post-selection inference.
+stability investigation and valid post-selection inference measures.
 
 ``` r
 # Bootstrap ----------------------------------------------------------
 # Set number of bootstraps 
-bootnum <- 1000
+bootnum <- 1000 # NOTE: This may take some time. If you are troubleshooting your code, temporarily reduce this to 100
 # Set up matrix for results 
 boot_est <-  boot_se <- matrix(0, ncol = length(pred) + 1, nrow = bootnum,
                                dimnames = list(NULL, c("(Intercept)", pred)))
@@ -802,39 +671,7 @@ boot_median <- apply(boot_est, 2, median)
 boot_025per <- apply(boot_est, 2, function(x) quantile(x, 0.025))
 boot_975per <- apply(boot_est, 2, function(x) quantile(x, 0.975))
 boot.temp <- cbind(boot_median, boot_025per, boot_975per)
-pander(boot.temp)
-```
-
-|                                | boot_median | boot_025per | boot_975per |
-|:------------------------------:|:-----------:|:-----------:|:-----------:|
-|        **(Intercept)**         |    -14.5    |   -46.37    |    20.22    |
-|            **age**             |   0.05123   |      0      |   0.1044    |
-|         **weight_kg**          |   -0.1929   |   -0.3852   |      0      |
-|         **height_cm**          |  -0.02863   |   -0.1471   |   0.08253   |
-|            **neck**            |   -0.4262   |   -0.8142   |      0      |
-|          **abdomen**           |    0.953    |    0.779    |    1.102    |
-|           **thigh**            |   0.1643    |      0      |   0.3446    |
-|            **knee**            |      0      |   -0.5581   |      0      |
-|           **ankle**            |      0      |   -0.5872   |   0.3582    |
-|           **biceps**           |      0      |      0      |   0.4185    |
-|          **forearm**           |   0.4022    |      0      |   0.6483    |
-|           **wrist**            |   -1.834    |   -2.726    |   -0.9196   |
-|            **rs1**             |    3.951    |      0      |    7.696    |
-|            **rs2**             |   -1.312    |   -1.929    |   -0.6549   |
-|            **rs3**             |   0.7165    |      0      |    1.435    |
-|            **rs4**             |      0      |   -0.9303   |      0      |
-|            **rs5**             |   0.8288    |      0      |    1.538    |
-|            **rs6**             |      0      |   -0.5637   |   0.7257    |
-|        **num_children**        |      0      |   -0.216    |   0.4981    |
-|    **family_mealtime_freq**    |      0      |  -0.08284   |   0.1368    |
-| **physical_environment_score** |      0      |  -0.04272   |   0.0427    |
-|        **stress_level**        |    -0.3     |   -0.5542   |      0      |
-|     **physical_activity**      |      0      |      0      |    1.288    |
-|       **sleep_duration**       |   -1.179    |    -1.64    |   -0.7553   |
-|    **healthy_eating_index**    |   0.0352    |      0      |   0.08102   |
-|         **gxe_effect**         |   0.8443    |   0.4451    |    1.321    |
-
-``` r
+#pander(boot.temp)
 boot.temp
 ```
 
@@ -882,36 +719,36 @@ across all bootstrapped realizations.
 # Calculate bootstrap inclusion frequency 
 boot_01 <- (boot_est != 0) * 1
 boot_inclusion <- apply(boot_01, 2, function(x) sum(x) / length(x) * 100)
-pander(boot_inclusion)
+#pander(boot_inclusion)
+boot_inclusion
 ```
 
-| (Intercept) | age | weight_kg | height_cm | neck | abdomen | thigh | knee |
-|:-----------:|:---:|:---------:|:---------:|:----:|:-------:|:-----:|:----:|
-|     100     | 76  |   75.8    |    100    | 77.8 |   100   | 62.6  | 29.3 |
-
-Table continues below
-
-| ankle | biceps | forearm | wrist | rs1  | rs2  | rs3  | rs4  | rs5  | rs6  |
-|:-----:|:------:|:-------:|:-----:|:----:|:----:|:----:|:----:|:----:|:----:|
-| 30.1  |  37.5  |  95.3   | 99.9  | 84.6 | 99.2 | 67.5 | 33.7 | 81.3 | 21.4 |
-
-Table continues below
-
-| num_children | family_mealtime_freq | physical_environment_score |
-|:------------:|:--------------------:|:--------------------------:|
-|     36.9     |         24.5         |            18.1            |
-
-Table continues below
-
-| stress_level | physical_activity | sleep_duration | healthy_eating_index |
-|:------------:|:-----------------:|:--------------:|:--------------------:|
-|     87.3     |       29.6        |      100       |         57.4         |
-
-Table continues below
-
-| gxe_effect |
-|:----------:|
-|    100     |
+    ##                (Intercept)                        age 
+    ##                      100.0                       76.0 
+    ##                  weight_kg                  height_cm 
+    ##                       75.8                      100.0 
+    ##                       neck                    abdomen 
+    ##                       77.8                      100.0 
+    ##                      thigh                       knee 
+    ##                       62.6                       29.3 
+    ##                      ankle                     biceps 
+    ##                       30.1                       37.5 
+    ##                    forearm                      wrist 
+    ##                       95.3                       99.9 
+    ##                        rs1                        rs2 
+    ##                       84.6                       99.2 
+    ##                        rs3                        rs4 
+    ##                       67.5                       33.7 
+    ##                        rs5                        rs6 
+    ##                       81.3                       21.4 
+    ##               num_children       family_mealtime_freq 
+    ##                       36.9                       24.5 
+    ## physical_environment_score               stress_level 
+    ##                       18.1                       87.3 
+    ##          physical_activity             sleep_duration 
+    ##                       29.6                      100.0 
+    ##       healthy_eating_index                 gxe_effect 
+    ##                       57.4                      100.0
 
 Interpretation: These numbers quantify how likely an independent
 variable is to be selected (as %).
@@ -960,22 +797,22 @@ Table continues below
 |   1.393    |
 
 Interpretation: Variable selection adds to uncertainty about the
-regression coefficients, which is evidenced by RMSD ratios above 1
-(except for ankle, wrist, rs4, rs6, family mealtime frequency, physical
-environment score, and physical activity - which have values \<1 and
-indicate variance deflation). So our process made estimates less certain
-for all coefficients except for those with values \<1 (which were
-included in fewer models … and when they were, they were included with a
-set of variables that were similar to the full model).
+regression coefficients, which is evidenced by RMSD ratios above 1 for
+most variables (values \<1 indicate variance deflation). So our process
+made estimates less certain for all coefficients except for those with
+values \<1 (which were included in fewer models … and when they were,
+they were included with a set of variables that were similar to the full
+model).
 
 RMSD ratios above 1: indicate increased uncertainty (variance inflation)
 for those variables, meaning variable selection has made the estimates
-less certain for coefficients with ratios above 1. RMSD ratios below 1:
-indicate decreased uncertainty (variance deflation), suggesting that
-variable selection made the estimates more stable (more certain) for
-coefficients with ratios below 1. This often happens because those
-variables were included less frequently or under similar conditions in
-bootstrap models.
+less certain for coefficients with ratios above 1.
+
+RMSD ratios below 1: indicate decreased uncertainty (variance
+deflation), suggesting that variable selection made the estimates more
+stable (more certain) for coefficients with ratios below 1. This often
+happens because those variables were included less frequently or under
+similar conditions in bootstrap models.
 
 ### Relative conditional bias
 
@@ -1144,97 +981,17 @@ Table continues below
 | **physical_environment_score** |      0      |   -0.0427   |   0.0427    |
 
 ``` r
-overview
+#overview
 ```
-
-    ##                            full_est full_se boot_inclusion  sel_est  sel_se
-    ## (Intercept)                -17.4415 15.2213          100.0 -15.0063 14.1522
-    ## height_cm                   -0.0128  0.0568          100.0  -0.0421  0.0530
-    ## abdomen                      0.9577  0.0729          100.0   0.9490  0.0699
-    ## sleep_duration              -1.1706  0.1414          100.0  -1.1381  0.1387
-    ## gxe_effect                   0.8576  0.1676          100.0   0.8240  0.1593
-    ## wrist                       -1.8274  0.4413           99.9  -1.9200  0.4151
-    ## rs2                         -1.2739  0.3303           99.2  -1.2607  0.3271
-    ## forearm                      0.4145  0.1495           95.3   0.4439  0.1445
-    ## stress_level                -0.2942  0.1136           87.3  -0.3297  0.1086
-    ## rs1                          3.8744  1.5561           84.6   4.0937  1.4865
-    ## rs5                          0.8264  0.3550           81.3   0.8003  0.3469
-    ## neck                        -0.3987  0.1964           77.8  -0.3581  0.1869
-    ## age                          0.0522  0.0261           76.0   0.0488  0.0248
-    ## weight_kg                   -0.2042  0.0974           75.8  -0.1879  0.0885
-    ## rs3                          0.7106  0.3953           67.5   0.6013  0.3879
-    ## thigh                        0.1858  0.1073           62.6   0.1473  0.0935
-    ## healthy_eating_index         0.0335  0.0227           57.4   0.0354  0.0224
-    ## biceps                       0.1464  0.1400           37.5   0.0000  0.0000
-    ## num_children                 0.1501  0.1549           36.9   0.0000  0.0000
-    ## rs4                         -0.3164  0.3285           33.7   0.0000  0.0000
-    ## ankle                       -0.1240  0.2163           30.1   0.0000  0.0000
-    ## physical_activity            0.3706  0.4843           29.6   0.0000  0.0000
-    ## knee                        -0.1661  0.2006           29.3   0.0000  0.0000
-    ## family_mealtime_freq         0.0293  0.0531           24.5   0.0000  0.0000
-    ## rs6                          0.0807  0.3259           21.4   0.0000  0.0000
-    ## physical_environment_score  -0.0004  0.0219           18.1   0.0000  0.0000
-    ##                            rmsdratio boot_relbias boot_median boot_025per
-    ## (Intercept)                   1.2239     -24.7901    -14.4975    -46.3672
-    ## height_cm                     1.1243     157.3476     -0.0286     -0.1471
-    ## abdomen                       1.1762      -1.2567      0.9530      0.7790
-    ## sleep_duration                1.5563       0.9042     -1.1786     -1.6399
-    ## gxe_effect                    1.3926       1.2249      0.8443      0.4451
-    ## wrist                         1.0180       0.3199     -1.8344     -2.7261
-    ## rs2                           1.0325       2.9169     -1.3122     -1.9288
-    ## forearm                       0.9516       0.7588      0.4022      0.0000
-    ## stress_level                  1.3090      13.2390     -0.3000     -0.5542
-    ## rs1                           1.3636      15.1413      3.9508      0.0000
-    ## rs5                           1.2783      14.6072      0.8288      0.0000
-    ## neck                          1.2493      25.1567     -0.4262     -0.8142
-    ## age                           1.2351      20.3693      0.0512      0.0000
-    ## weight_kg                     1.2659      15.2317     -0.1929     -0.3852
-    ## rs3                           1.2215      27.4729      0.7165      0.0000
-    ## thigh                         1.2068      19.6571      0.1643      0.0000
-    ## healthy_eating_index          1.2606      53.5160      0.0352      0.0000
-    ## biceps                        1.0869      95.1585      0.0000      0.0000
-    ## num_children                  1.1870      87.2621      0.0000     -0.2160
-    ## rs4                           1.0552     103.2616      0.0000     -0.9303
-    ## ankle                         1.0528     145.0509      0.0000     -0.5872
-    ## physical_activity             0.9899     132.2329      0.0000      0.0000
-    ## knee                          1.0349     109.4968      0.0000     -0.5581
-    ## family_mealtime_freq          0.9654     143.3856      0.0000     -0.0828
-    ## rs6                           0.8669     259.4143      0.0000     -0.5637
-    ## physical_environment_score    0.7789    -504.1432      0.0000     -0.0427
-    ##                            boot_975per
-    ## (Intercept)                    20.2202
-    ## height_cm                       0.0825
-    ## abdomen                         1.1021
-    ## sleep_duration                 -0.7553
-    ## gxe_effect                      1.3210
-    ## wrist                          -0.9196
-    ## rs2                            -0.6549
-    ## forearm                         0.6483
-    ## stress_level                    0.0000
-    ## rs1                             7.6959
-    ## rs5                             1.5377
-    ## neck                            0.0000
-    ## age                             0.1044
-    ## weight_kg                       0.0000
-    ## rs3                             1.4350
-    ## thigh                           0.3446
-    ## healthy_eating_index            0.0810
-    ## biceps                          0.4185
-    ## num_children                    0.4981
-    ## rs4                             0.0000
-    ## ankle                           0.3582
-    ## physical_activity               1.2882
-    ## knee                            0.0000
-    ## family_mealtime_freq            0.1368
-    ## rs6                             0.7257
-    ## physical_environment_score      0.0427
 
 Looking at everything together in a sorted/organized table, we note that
 the bootstrapped results resemble the global model —- but interestingly
 we see that some of the effect estimates have opposite signs in the
 selected model!!!!!! This further supports the importance of adding
-stability investigations to your models when using variable
-selection!!!! (I didn’t even plan that through data simulation!!!!!).
+stability investigations to your models when using variable selection as
+the directions of effect can vary based on which covariates are included
+in the final model!!!! (I didn’t even plan that through data
+simulation!!!!!).
 
 ## Model selection frequency
 
@@ -1286,58 +1043,10 @@ pander(cbind("Predictors"= apply(boot_modfreq[,c(2:14)], 1,
 | **60**  |   height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs5 neck age weight_kg   |   2   |   0.2   |     4.8     |
 | **85**  | height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg |   2   |   0.2   |      5      |
 
-``` r
-cbind("Predictors"= apply(boot_modfreq[,c(2:14)], 1, 
-                          function(x) paste(names(x[x==1]), collapse=" ")),
-      boot_modfreq[,c("count", "percent", "cum_percent")])
-```
-
-    ##                                                                                                Predictors
-    ## 20      height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck weight_kg
-    ## 13  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 49  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 64       height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 age weight_kg
-    ## 66  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 93  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 153     height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 neck age weight_kg
-    ## 342      height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 age weight_kg
-    ## 465 height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 15           height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 weight_kg
-    ## 16      height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck weight_kg
-    ## 25       height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 age weight_kg
-    ## 30       height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 age weight_kg
-    ## 31      height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 neck age weight_kg
-    ## 33  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 44           height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 weight_kg
-    ## 46  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 55  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ## 60      height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs5 neck age weight_kg
-    ## 85  height_cm abdomen sleep_duration gxe_effect wrist rs2 forearm stress_level rs1 rs5 neck age weight_kg
-    ##     count percent cum_percent
-    ## 20      4     0.4         0.4
-    ## 13      3     0.3         0.7
-    ## 49      3     0.3         1.0
-    ## 64      3     0.3         1.3
-    ## 66      3     0.3         1.6
-    ## 93      3     0.3         1.9
-    ## 153     3     0.3         2.2
-    ## 342     3     0.3         2.5
-    ## 465     3     0.3         2.8
-    ## 15      2     0.2         3.0
-    ## 16      2     0.2         3.2
-    ## 25      2     0.2         3.4
-    ## 30      2     0.2         3.6
-    ## 31      2     0.2         3.8
-    ## 33      2     0.2         4.0
-    ## 44      2     0.2         4.2
-    ## 46      2     0.2         4.4
-    ## 55      2     0.2         4.6
-    ## 60      2     0.2         4.8
-    ## 85      2     0.2         5.0
-
 The above table shows the combinations of predictors and the number of
 times/percentage of time those predictors were selected together. The
-highest selection frequency is only 2%.
+highest selection frequency is only 2% (which is not uncommon in complex
+health studies).
 
 ``` r
 # Model frequency in % of selected model ----------------------------
@@ -1348,8 +1057,8 @@ sel_modfreq
 
     ## [1] 0.2
 
-Note also that our selected model (via Backwards elimination) was never
-exactly reproduced in the bootstrapping approach.
+Note also that our selected model (via Backwards elimination) was seen
+at low frequency (0.2) in bootstrapping.
 
 ## Pairwise inclusion frequency
 
@@ -1386,248 +1095,7 @@ for (i in 1:dim(combis)[2]) {
                      expect_pairfreq[i], "-", "+")))
 }
 diag(boot_pairfreq) <- boot_inclusion[pred_ord][-1]
-pander(boot_pairfreq, quote = F)
-```
-
-|                                | height_cm | abdomen | sleep_duration |
-|:------------------------------:|:---------:|:-------:|:--------------:|
-|         **height_cm**          |    100    |   100   |      100       |
-|          **abdomen**           |    NA     |   100   |      100       |
-|       **sleep_duration**       |    NA     |   NA    |      100       |
-|         **gxe_effect**         |    NA     |   NA    |       NA       |
-|           **wrist**            |    NA     |   NA    |       NA       |
-|            **rs2**             |    NA     |   NA    |       NA       |
-|          **forearm**           |    NA     |   NA    |       NA       |
-|        **stress_level**        |    NA     |   NA    |       NA       |
-|            **rs1**             |    NA     |   NA    |       NA       |
-|            **rs5**             |    NA     |   NA    |       NA       |
-|            **neck**            |    NA     |   NA    |       NA       |
-|            **age**             |    NA     |   NA    |       NA       |
-|         **weight_kg**          |    NA     |   NA    |       NA       |
-|            **rs3**             |    NA     |   NA    |       NA       |
-|           **thigh**            |    NA     |   NA    |       NA       |
-|    **healthy_eating_index**    |    NA     |   NA    |       NA       |
-|           **biceps**           |    NA     |   NA    |       NA       |
-|        **num_children**        |    NA     |   NA    |       NA       |
-|            **rs4**             |    NA     |   NA    |       NA       |
-|           **ankle**            |    NA     |   NA    |       NA       |
-|     **physical_activity**      |    NA     |   NA    |       NA       |
-|            **knee**            |    NA     |   NA    |       NA       |
-|    **family_mealtime_freq**    |    NA     |   NA    |       NA       |
-|            **rs6**             |    NA     |   NA    |       NA       |
-| **physical_environment_score** |    NA     |   NA    |       NA       |
-
-Table continues below
-
-|                                | gxe_effect | wrist | rs2  | forearm |
-|:------------------------------:|:----------:|:-----:|:----:|:-------:|
-|         **height_cm**          |    100     | 99.9  | 99.2 |  95.3   |
-|          **abdomen**           |    100     | 99.9  | 99.2 |  95.3   |
-|       **sleep_duration**       |    100     | 99.9  | 99.2 |  95.3   |
-|         **gxe_effect**         |    100     | 99.9  | 99.2 |  95.3   |
-|           **wrist**            |     NA     | 99.9  | 99.1 |  95.2   |
-|            **rs2**             |     NA     |       | 99.2 |  94.5   |
-|          **forearm**           |     NA     |       |      |  95.3   |
-|        **stress_level**        |     NA     |       |      |         |
-|            **rs1**             |     NA     |       |      |         |
-|            **rs5**             |     NA     |       |      |         |
-|            **neck**            |     NA     |       |      |         |
-|            **age**             |     NA     |       |      |         |
-|         **weight_kg**          |     NA     |       |      |         |
-|            **rs3**             |     NA     |       |      |         |
-|           **thigh**            |     NA     |       |      |         |
-|    **healthy_eating_index**    |     NA     |       |      |         |
-|           **biceps**           |     NA     |       |      |   \+    |
-|        **num_children**        |     NA     |       |      |         |
-|            **rs4**             |     NA     |       |      |         |
-|           **ankle**            |     NA     |       |      |         |
-|     **physical_activity**      |     NA     |       |      |   \+    |
-|            **knee**            |     NA     |       |      |         |
-|    **family_mealtime_freq**    |     NA     |       |      |         |
-|            **rs6**             |     NA     |       |      |         |
-| **physical_environment_score** |     NA     |       |      |         |
-
-Table continues below
-
-|                                | stress_level | rs1  | rs5  | neck | age  |
-|:------------------------------:|:------------:|:----:|:----:|:----:|:----:|
-|         **height_cm**          |     87.3     | 84.6 | 81.3 | 77.8 |  76  |
-|          **abdomen**           |     87.3     | 84.6 | 81.3 | 77.8 |  76  |
-|       **sleep_duration**       |     87.3     | 84.6 | 81.3 | 77.8 |  76  |
-|         **gxe_effect**         |     87.3     | 84.6 | 81.3 | 77.8 |  76  |
-|           **wrist**            |     87.2     | 84.5 | 81.3 | 77.7 |  76  |
-|            **rs2**             |     86.6     | 83.9 | 80.7 |  77  | 75.2 |
-|          **forearm**           |     83.2     | 80.5 | 77.6 | 74.7 |  73  |
-|        **stress_level**        |     87.3     | 76.2 | 71.9 | 69.4 | 64.7 |
-|            **rs1**             |      \+      | 84.6 | 68.7 | 65.1 | 62.8 |
-|            **rs5**             |              |      | 81.3 | 62.3 | 61.5 |
-|            **neck**            |      \+      |      |      | 77.8 | 59.8 |
-|            **age**             |      \+      |  \+  |      |      |  76  |
-|         **weight_kg**          |              |      |      |  \-  |  \-  |
-|            **rs3**             |              |      |      |  \-  |      |
-|           **thigh**            |      \+      |  \+  |      |  \+  |  \+  |
-|    **healthy_eating_index**    |              |      |      |      |      |
-|           **biceps**           |              |      |  \+  |      |  \+  |
-|        **num_children**        |      \+      |      |      |  \-  |  \-  |
-|            **rs4**             |      \+      |      |      |      |      |
-|           **ankle**            |              |      |  \+  |      |      |
-|     **physical_activity**      |              |  \-  |  \-  |  \-  |      |
-|            **knee**            |              |      |      |      |  \+  |
-|    **family_mealtime_freq**    |              |  \-  |      |      |      |
-|            **rs6**             |              |      |      |      |      |
-| **physical_environment_score** |              |      |      |      |      |
-
-Table continues below
-
-|                                | weight_kg | rs3  | thigh |
-|:------------------------------:|:---------:|:----:|:-----:|
-|         **height_cm**          |   75.8    | 67.5 | 62.6  |
-|          **abdomen**           |   75.8    | 67.5 | 62.6  |
-|       **sleep_duration**       |   75.8    | 67.5 | 62.6  |
-|         **gxe_effect**         |   75.8    | 67.5 | 62.6  |
-|           **wrist**            |   75.7    | 67.4 | 62.5  |
-|            **rs2**             |   75.2    | 66.9 | 62.1  |
-|          **forearm**           |   72.9    | 63.7 | 60.1  |
-|        **stress_level**        |    66     | 58.1 | 52.5  |
-|            **rs1**             |   63.7    | 55.7 | 50.6  |
-|            **rs5**             |   61.3    | 54.1 | 50.7  |
-|            **neck**            |   54.5    | 54.4 | 45.2  |
-|            **age**             |   53.7    | 51.9 | 54.2  |
-|         **weight_kg**          |   75.8    | 50.6 | 50.6  |
-|            **rs3**             |           | 67.5 | 43.8  |
-|           **thigh**            |    \+     |      | 62.6  |
-|    **healthy_eating_index**    |           |  \-  |       |
-|           **biceps**           |    \+     |      |  \+   |
-|        **num_children**        |           |      |  \+   |
-|            **rs4**             |    \+     |      |  \+   |
-|           **ankle**            |    \+     |      |       |
-|     **physical_activity**      |           |      |       |
-|            **knee**            |    \-     |      |  \+   |
-|    **family_mealtime_freq**    |           |      |  \-   |
-|            **rs6**             |           |      |       |
-| **physical_environment_score** |           |      |       |
-
-Table continues below
-
-|                                | healthy_eating_index | biceps | num_children |
-|:------------------------------:|:--------------------:|:------:|:------------:|
-|         **height_cm**          |         57.4         |  37.5  |     36.9     |
-|          **abdomen**           |         57.4         |  37.5  |     36.9     |
-|       **sleep_duration**       |         57.4         |  37.5  |     36.9     |
-|         **gxe_effect**         |         57.4         |  37.5  |     36.9     |
-|           **wrist**            |         57.3         |  37.5  |     36.9     |
-|            **rs2**             |         56.7         |  37.2  |     36.8     |
-|          **forearm**           |         55.4         |  34.7  |     35.3     |
-|        **stress_level**        |         50.1         |  31.9  |     29.8     |
-|            **rs1**             |         48.6         |  32.7  |     31.1     |
-|            **rs5**             |         47.1         |  28.2  |     28.9     |
-|            **neck**            |         43.1         |  30.4  |     26.5     |
-|            **age**             |         42.9         |   26   |     29.9     |
-|         **weight_kg**          |         44.6         |  32.5  |     28.2     |
-|            **rs3**             |         34.9         |  25.5  |     26.6     |
-|           **thigh**            |         35.4         |  17.6  |     27.7     |
-|    **healthy_eating_index**    |         57.4         |  19.5  |     20.9     |
-|           **biceps**           |          \+          |  37.5  |     12.9     |
-|        **num_children**        |                      |        |     36.9     |
-|            **rs4**             |                      |   \+   |              |
-|           **ankle**            |                      |        |              |
-|     **physical_activity**      |                      |        |              |
-|            **knee**            |                      |        |      \+      |
-|    **family_mealtime_freq**    |                      |   \-   |              |
-|            **rs6**             |                      |   \-   |              |
-| **physical_environment_score** |                      |        |              |
-
-Table continues below
-
-|                                | rs4  | ankle | physical_activity | knee |
-|:------------------------------:|:----:|:-----:|:-----------------:|:----:|
-|         **height_cm**          | 33.7 | 30.1  |       29.6        | 29.3 |
-|          **abdomen**           | 33.7 | 30.1  |       29.6        | 29.3 |
-|       **sleep_duration**       | 33.7 | 30.1  |       29.6        | 29.3 |
-|         **gxe_effect**         | 33.7 | 30.1  |       29.6        | 29.3 |
-|           **wrist**            | 33.7 |  30   |       29.6        | 29.2 |
-|            **rs2**             | 33.4 | 29.7  |       29.3        | 29.2 |
-|          **forearm**           | 31.8 | 29.2  |       27.3        | 28.7 |
-|        **stress_level**        | 25.5 | 25.9  |       25.8        | 25.4 |
-|            **rs1**             | 27.5 | 26.3  |       23.5        |  25  |
-|            **rs5**             | 28.3 | 22.7  |       25.6        | 23.4 |
-|            **neck**            | 25.1 | 24.3  |       20.9        | 22.9 |
-|            **age**             | 25.2 | 22.2  |       22.4        | 25.1 |
-|         **weight_kg**          | 28.2 | 18.5  |       23.6        | 19.9 |
-|            **rs3**             | 22.2 | 20.4  |       20.5        |  21  |
-|           **thigh**            | 23.8 | 18.3  |        19         | 24.1 |
-|    **healthy_eating_index**    | 20.1 | 17.7  |       17.2        | 16.5 |
-|           **biceps**           | 15.7 |  9.5  |       11.2        | 10.2 |
-|        **num_children**        | 13.2 | 12.2  |        9.7        | 13.2 |
-|            **rs4**             | 33.7 | 10.4  |       12.4        | 9.2  |
-|           **ankle**            |      | 30.1  |        8.8        | 7.1  |
-|     **physical_activity**      |  \-  |       |       29.6        | 7.3  |
-|            **knee**            |      |       |                   | 29.3 |
-|    **family_mealtime_freq**    |      |       |                   |      |
-|            **rs6**             |      |       |                   |      |
-| **physical_environment_score** |      |       |                   |  \-  |
-
-Table continues below
-
-|                                | family_mealtime_freq | rs6  |
-|:------------------------------:|:--------------------:|:----:|
-|         **height_cm**          |         24.5         | 21.4 |
-|          **abdomen**           |         24.5         | 21.4 |
-|       **sleep_duration**       |         24.5         | 21.4 |
-|         **gxe_effect**         |         24.5         | 21.4 |
-|           **wrist**            |         24.5         | 21.4 |
-|            **rs2**             |         24.3         | 21.1 |
-|          **forearm**           |         23.9         | 20.5 |
-|        **stress_level**        |         21.5         | 18.9 |
-|            **rs1**             |         18.9         | 18.9 |
-|            **rs5**             |         21.3         | 17.5 |
-|            **neck**            |         20.5         | 16.5 |
-|            **age**             |         19.9         | 15.4 |
-|         **weight_kg**          |         17.7         | 17.4 |
-|            **rs3**             |         17.7         | 14.6 |
-|           **thigh**            |         17.7         | 12.6 |
-|    **healthy_eating_index**    |         13.3         |  12  |
-|           **biceps**           |         7.1          | 9.8  |
-|        **num_children**        |         9.4          | 8.1  |
-|            **rs4**             |         8.5          | 6.7  |
-|           **ankle**            |         6.1          | 6.4  |
-|     **physical_activity**      |         7.1          | 5.2  |
-|            **knee**            |          8           |  6   |
-|    **family_mealtime_freq**    |         24.5         | 6.4  |
-|            **rs6**             |                      | 21.4 |
-| **physical_environment_score** |                      |      |
-
-Table continues below
-
-|                                | physical_environment_score |
-|:------------------------------:|:--------------------------:|
-|         **height_cm**          |            18.1            |
-|          **abdomen**           |            18.1            |
-|       **sleep_duration**       |            18.1            |
-|         **gxe_effect**         |            18.1            |
-|           **wrist**            |            18.1            |
-|            **rs2**             |            17.7            |
-|          **forearm**           |            17.1            |
-|        **stress_level**        |             16             |
-|            **rs1**             |            14.8            |
-|            **rs5**             |            15.2            |
-|            **neck**            |            13.4            |
-|            **age**             |            14.7            |
-|         **weight_kg**          |            13.1            |
-|            **rs3**             |            12.4            |
-|           **thigh**            |            10.9            |
-|    **healthy_eating_index**    |            10.1            |
-|           **biceps**           |            6.8             |
-|        **num_children**        |            6.3             |
-|            **rs4**             |            5.8             |
-|           **ankle**            |             5              |
-|     **physical_activity**      |            5.5             |
-|            **knee**            |             7              |
-|    **family_mealtime_freq**    |            4.7             |
-|            **rs6**             |            3.4             |
-| **physical_environment_score** |            18.1            |
-
-``` r
+#pander(boot_pairfreq, quote = F)
 print(boot_pairfreq, quote = F)
 ```
 
@@ -1762,8 +1230,6 @@ print(boot_pairfreq, quote = F)
     ## rs6                                             21.4 3.4                       
     ## physical_environment_score                           18.1
 
-LACEY START HERE
-
 Pairwise inclusion frequencies inform about “rope teams” and
 “competitors” among the independent variables. For example, weight and
 neck circumference were both selected in only 54.5% of the resamples,
@@ -1782,10 +1248,6 @@ In this table, a significance of a chi-squared test at the 0.01 level is
 the formal criterion for the flags.
 
 ## Shrinkage factors
-
-See Section 4.5 (p. 75) of Frank E. Harrell, Jr. Regression Modeling
-Strategies:
-<https://antivirus.uclv.edu.cu/update/libros/Mathematics%20and%20Statistics/Regression%20Modeling%20Strategies%20-%20Frank%20E.%20Harrell%20%2C%20Jr.%2C%202nd%20ed.%202015%20-%20978-3-319-19425-7.pdf>
 
 Shrinkage factors are a tool to improve the stability and
 generalizability of regression models, particularly in situations where
@@ -1813,6 +1275,10 @@ factors for data sets with high correlations between the variables.
 Nevertheless, the following code computes these data similar to that
 shown in Table S3 of [Heinze, Wallisch, and Dunkler
 (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067).
+
+See Section 4.5 (p. 75) of Frank E. Harrell, Jr. Regression Modeling
+Strategies:
+<https://antivirus.uclv.edu.cu/update/libros/Mathematics%20and%20Statistics/Regression%20Modeling%20Strategies%20-%20Frank%20E.%20Harrell%20%2C%20Jr.%2C%202nd%20ed.%202015%20-%20978-3-319-19425-7.pdf>
 
 ``` r
 # Shrinkage factors --------------------------------------------------
@@ -2053,80 +1519,11 @@ Table continues below
 |      **gxe_effect**      |       -0.0562        |     1      |
 
 ``` r
-round(cbind("Shrinkage factors" = sel_mod_shrinkp$ShrinkageFactors,
-            "SE of shrinkage factors" = sqrt(diag(sel_mod_shrinkp_vcov))[-1],
-            "Correlation matrix of shrinkage factors" = 
-              cov2cor(sel_mod_shrinkp_vcov)[-1,-1]),4)
+#round(cbind("Shrinkage factors" = sel_mod_shrinkp$ShrinkageFactors,
+#            "SE of shrinkage factors" = sqrt(diag(sel_mod_shrinkp_vcov))[-1],
+#            "Correlation matrix of shrinkage factors" = 
+#              cov2cor(sel_mod_shrinkp_vcov)[-1,-1]),4)
 ```
-
-    ##                      Shrinkage factors SE of shrinkage factors     age
-    ## age                             0.6546                  0.5121  1.0000
-    ## weight_kg                       1.2973                  0.3407 -0.3622
-    ## height_cm                       0.1723                  0.4683 -0.1060
-    ## neck                            0.3685                  0.3891  0.0312
-    ## abdomen                         1.0366                  0.0604 -0.5393
-    ## thigh                           0.8249                  0.5594  0.2698
-    ## forearm                         0.7874                  0.3463  0.1085
-    ## wrist                           0.9557                  0.2052  0.4501
-    ## rs1                             1.1384                  0.3507 -0.0768
-    ## rs2                             0.9504                  0.2662 -0.0338
-    ## rs3                             0.7255                  0.6633 -0.0464
-    ## rs5                             0.7039                  0.4495  0.0203
-    ## stress_level                    0.9186                  0.3396 -0.0843
-    ## sleep_duration                  0.9851                  0.1267  0.0084
-    ## healthy_eating_index            0.7163                  0.6476 -0.0282
-    ## gxe_effect                      0.9147                  0.1869  0.0632
-    ##                      weight_kg height_cm    neck abdomen   thigh forearm
-    ## age                    -0.3622   -0.1060  0.0312 -0.5393  0.2698  0.1085
-    ## weight_kg               1.0000   -0.2179 -0.1038  0.7332  0.4203  0.2008
-    ## height_cm              -0.2179    1.0000 -0.0182 -0.1720 -0.1722  0.0232
-    ## neck                   -0.1038   -0.0182  1.0000  0.1702 -0.0455  0.2547
-    ## abdomen                 0.7332   -0.1720  0.1702  1.0000 -0.0675  0.1328
-    ## thigh                   0.4203   -0.1722 -0.0455 -0.0675  1.0000 -0.0411
-    ## forearm                 0.2008    0.0232  0.2547  0.1328 -0.0411  1.0000
-    ## wrist                  -0.4217   -0.0991 -0.1702 -0.3016  0.0306  0.1270
-    ## rs1                    -0.0345    0.0082 -0.1129 -0.0276 -0.0934 -0.0767
-    ## rs2                    -0.0568   -0.0352 -0.0781 -0.0910 -0.0024 -0.1830
-    ## rs3                    -0.0576    0.0104  0.0444 -0.0472  0.0435  0.0199
-    ## rs5                    -0.0188    0.0710  0.1026  0.0374  0.0021  0.0896
-    ## stress_level            0.0814    0.0520  0.1078  0.1235 -0.0218  0.1250
-    ## sleep_duration          0.0223    0.0226 -0.0680  0.0292  0.0131  0.0691
-    ## healthy_eating_index    0.0465   -0.0294 -0.0115  0.1068 -0.0021  0.0165
-    ## gxe_effect              0.0600   -0.0315  0.1064  0.0505  0.0879  0.0817
-    ##                        wrist     rs1     rs2     rs3     rs5 stress_level
-    ## age                   0.4501 -0.0768 -0.0338 -0.0464  0.0203      -0.0843
-    ## weight_kg            -0.4217 -0.0345 -0.0568 -0.0576 -0.0188       0.0814
-    ## height_cm            -0.0991  0.0082 -0.0352  0.0104  0.0710       0.0520
-    ## neck                 -0.1702 -0.1129 -0.0781  0.0444  0.1026       0.1078
-    ## abdomen              -0.3016 -0.0276 -0.0910 -0.0472  0.0374       0.1235
-    ## thigh                 0.0306 -0.0934 -0.0024  0.0435  0.0021      -0.0218
-    ## forearm               0.1270 -0.0767 -0.1830  0.0199  0.0896       0.1250
-    ## wrist                 1.0000 -0.0665 -0.0698  0.0164 -0.0008       0.0311
-    ## rs1                  -0.0665  1.0000  0.0872 -0.0879 -0.0603       0.0413
-    ## rs2                  -0.0698  0.0872  1.0000  0.1302 -0.0442      -0.1692
-    ## rs3                   0.0164 -0.0879  0.1302  1.0000 -0.0347      -0.0061
-    ## rs5                  -0.0008 -0.0603 -0.0442 -0.0347  1.0000      -0.0530
-    ## stress_level          0.0311  0.0413 -0.1692 -0.0061 -0.0530       1.0000
-    ## sleep_duration        0.1134 -0.6342  0.0656  0.0901 -0.0726      -0.0895
-    ## healthy_eating_index  0.0954  0.0670 -0.0039 -0.1356  0.0919       0.0694
-    ## gxe_effect            0.0459 -0.9696 -0.0602  0.0888  0.0401      -0.0791
-    ##                      sleep_duration healthy_eating_index gxe_effect
-    ## age                          0.0084              -0.0282     0.0632
-    ## weight_kg                    0.0223               0.0465     0.0600
-    ## height_cm                    0.0226              -0.0294    -0.0315
-    ## neck                        -0.0680              -0.0115     0.1064
-    ## abdomen                      0.0292               0.1068     0.0505
-    ## thigh                        0.0131              -0.0021     0.0879
-    ## forearm                      0.0691               0.0165     0.0817
-    ## wrist                        0.1134               0.0954     0.0459
-    ## rs1                         -0.6342               0.0670    -0.9696
-    ## rs2                          0.0656              -0.0039    -0.0602
-    ## rs3                          0.0901              -0.1356     0.0888
-    ## rs5                         -0.0726               0.0919     0.0401
-    ## stress_level                -0.0895               0.0694    -0.0791
-    ## sleep_duration               1.0000              -0.0478     0.6738
-    ## healthy_eating_index        -0.0478               1.0000    -0.0562
-    ## gxe_effect                   0.6738              -0.0562     1.0000
 
 Interpretation: In this example, model shrinkage is 0.9860103 which is
 very close to 1 and hence can be neglected.
@@ -2135,6 +1532,12 @@ These quantities were obtained using the R package
 [`shrink`](https://cran.r-project.org/web/packages/shrink/index.html)
 [(Dunkler, Sauerbrei and Heinze,
 2016)](https://www.jstatsoft.org/article/view/v069i08).
+
+# Conclusion
+
+Thanks for stopping by to take a look! Hopefully this is another helfpul
+tool for your statistical tool belt! Reach out if you want to chat.
+-Lacey (<law145@pitt.edu>)
 
 # References
 

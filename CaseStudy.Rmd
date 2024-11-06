@@ -27,7 +27,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 The purpose of this .Rmd file is to demonstrate variable selection and multivariable modeling in a fictitious case study estimating body fat percentage using simple anthropometric measures. This file uses source code that accompanies section 3.3 of the manuscript ["Variable selection: A review and recommendations for the practicing statistician"](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067) that was created by Georg Heinze, Christine Wallisch, and Daniela Dunkler. This code has been modified and annotated for the following work: 
 
-Heinsberg LW. Statistical Tools to Support Implementation: Variable Selection and Post-Selection Inference in Genomic Nursing Research. [Expert Lecturer Abstract, Podium]. Presented at the International Society of Nurses in Genetics, November 2024, San Diego, California. 
+Heinsberg LW. Statistical Tools to Support Implementation: Variable Selection and Post-Selection Inference in Genomic Nursing Research. (Expert Lecturer Abstract, Podium). Presented at the International Society of Nurses in Genetics, November 2024, San Diego, California. 
 
 For questions, comments, or remarks, feel free to contact Lacey Heinsberg (law145@pitt.edu).
 
