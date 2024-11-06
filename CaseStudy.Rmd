@@ -1,0 +1,482 @@
+---
+title: "Case study: variable selection for the approximation of body fat"
+author: "Lacey W. Heinsberg"
+date: "`r format(Sys.time(), '%B %d, %Y, %R')`"
+header-includes:
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '5'
+    code_folding: show
+  pdf_document:
+    toc: yes
+    toc_depth: '5'
+    number_sections: true
+  toc: true
+  html_preview: false
+  github_document:
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The purpose of this .Rmd file is to demonstrate variable selection and multivariable modeling in a fictitious case study estimating body fat percentage using simple anthropometric measures. This file uses source code that accompanies section 3.3 of the manuscript ["Variable selection: A review and recommendations for the practicing statistician"](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067) that was created by Georg Heinze, Christine Wallisch, and Daniela Dunkler. This code has been modified and annotated for the following work: 
+
+Heinsberg LW. Statistical Tools to Support Implementation: Variable Selection and Post-Selection Inference in Genomic Nursing Research. [Expert Lecturer Abstract, Podium]. Presented at the International Society of Nurses in Genetics, November 2024, San Diego, California. 
+
+For questions, comments, or remarks, feel free to contact Lacey Heinsberg (law145@pitt.edu).
+
+# Define study question 
+
+This fictitious study aims to investigate the influence of genetic variation (obesity-related SNPs), anthropometric measures, social drivers of health (SDOH), and behavioral factors on a continuous measure of body fat mass in adults aged 22-81 years.
+
+Outcome Variable:
+* Body fat 
+
+Explanatory Variables:
+
+1. Genetics
+* rs1 to rs6: Obesity-related genetic markers (0 = no risk alleles, 1 = one risk allele, 2 = two risk alleles).
+* Gene x Environment Effect: Interaction effect of rs1 and sleep duration.
+
+2. Demographics
+* Age: Continuous (years)
+
+3. Anthropometrics 
+* Weight: Continuous (kg).
+* Height: Continuous (cm).
+* Circumference Values: neck, abdomen, thigh, knee, ankle, biceps, forearm, wrist: Continuous (cm).
+
+4. Family dynamics
+* Number of Children in Household: Continuous, the total number of children living in the household.
+* Family Mealtime Frequency: Continuous, number of family meals per week (0–21, right-skewed).
+
+5. Environmental factors
+* Physical Environment Score: Composite continuous score, higher scores indicate a safer and more exercise-friendly environment.
+
+6. Psychosocial factors
+* Stress Level: Continuous, with higher scores indicating more stress.
+
+7. Behavioral factors 
+* Physical Activity Level: Continuous, hours per day spent on physical activity.
+* Sleep Duration: Continuous, hours of sleep per night.
+* Healthy Eating Index: Continuous, with higher scores indicating better eating habits.
+
+# Load libraries
+
+```{r lib, warning=FALSE, message=FALSE}
+library(shrink)
+library(pander)
+library(corrplot)
+library(dplyr)
+```
+
+# Load and prepare data
+
+The data set used for this example are from [Johnson's (1996)](https://www.tandfonline.com/doi/full/10.1080/10691898.1996.11910505) body fat study which was intended as an educational data set to teach multivariable linear regression in the classroom. The original purpose of the data set was to support the approximation of a costly measurement of body density (from which proportion of body fat can be derived with [Siri's (1956)](https://www.sciencedirect.com/science/article/abs/pii/B978148323110550011X) formula) by a combination of age, height, weight, and ten simple anthropometric circumference measures through multivariable linear regression. A more detailed description of the data can be found at: [https://ww2.amstat.org/publications/jse/datasets/fat.txt](https://ww2.amstat.org/publications/jse/datasets/fat.txt). In line with other literature, Heinze, Wallisch, and Dunkler excluded one individual from the original data set with an implausible height observation. The team also converted the units of some variables for the approach detailed below.
+
+Before using the data, we are going to modify it a bit by adding some simulated genetic data and nursing-centric covariates to support discussion throughout this fictitious case study (detailed above under "explanatory predictors"). 
+
+```{r data}
+# Load data ------------------------------------------------------
+case1.bodyfat <- read.table("data/case1_bodyfat.txt", header = T, sep = ";")
+n <- nrow(case1.bodyfat)
+```
+
+```{r}
+# Expand data ----------------------------------------------------
+# Set seed for reproducibility
+set.seed(123)
+
+# Simulate SNP data (rs1 to rs6) with varying minor allele frequencies (MAFs)
+case1.bodyfat <- case1.bodyfat %>%
+  mutate(
+    rs1 = rbinom(n, 2, 0.3),  # rs1 with MAF of 0.3
+    rs2 = rbinom(n, 2, 0.4),  # rs2 with MAF of 0.4
+    rs3 = rbinom(n, 2, 0.2),  # rs3 with MAF of 0.2
+    rs4 = rbinom(n, 2, 0.5),  # rs4 with MAF of 0.5
+    rs5 = rbinom(n, 2, 0.3),  # rs5 with MAF of 0.3
+    rs6 = rbinom(n, 2, 0.4)   # rs6 with MAF of 0.4
+  )
+
+# Simulate social drivers of health (SDOH) and behavioral factorss
+case1.bodyfat <- case1.bodyfat %>%
+  mutate(
+    num_children = pmax(0, rpois(n, 2)),  # Number of children, minimum 0
+    family_mealtime_freq = pmin(21, pmax(0, round(rlnorm(n, 2, 0.5)))),  # Family mealtime frequency, 0 and 21 meals per week
+    physical_environment_score = rnorm(n, 50, 10), # Physical environment score (unitless)
+    stress_level = pmin(10, pmax(0, rnorm(n, 5, 2))), # Stress, 0-10 with higher values indicating higher stress
+    physical_activity = pmin(16, pmax(0, rnorm(n, 1, 0.5))), # Physical activity in hours per day, 0-16 hours per day
+    sleep_duration = pmin(16, pmax(0, rnorm(n, 9, 2))), # Sleep duration in hours 0 to 16 hours
+    healthy_eating_index = pmin(100, pmax(0, rnorm(n, 50, 10))) # Healthy eating index, 0-100 (unitless)
+  )
+
+# Create a GxE interaction effect (for added interest) 
+case1.bodyfat <- case1.bodyfat %>%
+  mutate(
+    gxe_effect = rs1 * sleep_duration  # Interaction term between rs1 and sleep_duration
+  )
+
+# Create a new outcome that preserves the original siri structure with 
+# added SNP and interaction effects (so we can pretend we are onto something BIG!)
+case1.bodyfat <- case1.bodyfat %>%
+  mutate(
+    siri_simulated = siri + 1.5 * rs1 - 1.2 * rs2 - 0.4 * stress_level +
+                    0.5 * physical_activity - 0.3 * (sleep_duration - 7)^2 + 
+                    1.2 * gxe_effect 
+  )
+
+# Double the dataset for a larger sample size
+duplicated_data <- case1.bodyfat[sample(1:n, n, replace = TRUE), ]
+case1.bodyfat <- rbind(case1.bodyfat, duplicated_data)
+
+# Check the size of the new dataset and preview the first few rows
+n <- nrow(case1.bodyfat)
+head(case1.bodyfat)
+```
+
+Our example data set consists of `r n` participants with data on body fat (variable name `siri_simulated`, our outcome of interest) and several candidate variables hypothesized to be related to body fat. 
+
+# Analyses 
+
+## Events-per-variable (EPV)
+
+The ratio between sample size and the number of independent variables is termed “events-per-variable” (EPV). EPV quantifies the balance between the amount of information provided by the data and the number of unknown parameters that should be estimated. 
+
+With a limited sample size, it is not possible to accurately estimate many regression coefficients. Therefore, EPV "rules of thumb" (such as that recommend in Table 3 of [Heinze, Wallisch, and Dunkler (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067)) can be considered when developing your analytical approach. 
+
+For an expanded commentary on EPV, see section 2.1.3 of [Heinze, Wallisch, and Dunkler (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067). 
+
+Let's calculate the EPV for our example data set.
+
+```{r epv}
+# EPV --------------------------------------------------------------
+# Store predictors of interest
+pred <- c("age", "weight_kg", "height_cm", "neck",  "abdomen",  
+          "thigh", "knee", "ankle", "biceps", "forearm", "wrist", "rs1", "rs2", "rs3", "rs4", "rs5", "rs6", "num_children", "family_mealtime_freq", "physical_environment_score", "stress_level", "physical_activity", "sleep_duration", "healthy_eating_index", "gxe_effect" )
+
+# Compute EPV 
+epv <- dim(case1.bodyfat)[1] / length(pred)
+epv
+```
+
+In our example data set, we have an acceptable EPV of `r epv`. 
+
+## Correlation structure 
+
+Note that the EPV ratio above often oversimplifies the analytical approach because - beyond the number of independent variables - many other quantities such as the correlation structure of a data set may influence accuracy [(Courvoisier, Combescure, Agoritsas, Gayet-Ageron, & Perneger, 2011)](https://pubmed.ncbi.nlm.nih.gov/21411281/). The recommended EPV limits should be adapted to the situation (e.g., raised if correlations between candidate independent variables are particularly strong; lowered if candidate variables are all independent of each other) [(Heinze, Wallisch, and Dunkler, 2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067).
+
+Further, strong correlations impose some challenges in model development and interpretation. In particular, interpretation of regression coefficients as adjusted effects in the global model, or, if variable selection is applied, interpretation of non-selected variables as “non-predictive” can be problematic. As such, understanding the correlation structure of our data set is very important. 
+
+Let's examine it now. 
+
+```{r correlation}
+# Correlation structure --------------------------------------------
+#pander(cor(case1.bodyfat[, pred]))
+cor(case1.bodyfat[, pred])
+#cor_matrix <- cor(case1.bodyfat[, pred], use = "complete.obs")
+#upper_tri <- cor_matrix[upper.tri(cor_matrix)]
+#num_strong_correlations <- sum(upper_tri > 0.5)
+corrplot(round(cor(case1.bodyfat[, pred]),2))
+```
+
+An interesting feature of this data set is that many of the anthropometric measures are intrinsically correlated. For example, weight and abdomen circumference have a Pearson correlation coefficient of 0.88. Further, many pairs have correlation coefficients greater than 0.5. As described above, these high correlations impose some challenges in model development and interpretation. 
+
+## Regression 
+
+Based on our scientific expertise, let's say we believe that abdominal circumference and height are two central independent variables for estimating body fat. As such, we will not subject these to variable selection (i.e., we will "force" them into all models). We further believe that all other independent variables may be strongly interrelated and exchangeable when used for body fat estimation. Therefore, we will subject them to backward elimination with AIC as stopping criterion. 
+
+### Full model 
+
+First estimate the global (i.e., full) model which includes all candidate independent variables. 
+
+```{r full}
+# Estimate full model ----------------------------------------------
+formula <- paste("siri_simulated~", paste(pred, collapse = "+"))
+full_mod <- lm(formula, data = case1.bodyfat, x = T, y = T)
+full_est <- coef(full_mod)
+full_se <- coef(summary(full_mod))[, "Std. Error"]
+#pander(summary(full_mod))
+summary(full_mod)
+```
+
+### Selected model 
+
+Next, use backwards elimination to identify the "selected" model using R's built in approach. 
+
+```{r selected}
+# Selected model ---------------------------------------------------
+sel_mod <- step(lm(formula, data = case1.bodyfat,  x=T,y=T), 
+                direction = "backward",
+                scope = list(upper = formula, 
+                             # Force height and abdomen circumference into the model
+                             lower = formula(siri_simulated~abdomen+height_cm)),
+                trace = 0)
+#pander(summary(sel_mod))
+
+sel_est <- coef(sel_mod)[c("(Intercept)", pred)]
+sel_est[is.na(sel_est)] <- 0
+names(sel_est) <- c("(Intercept)", pred)
+sel_se <- coef(summary(sel_mod))[, "Std. Error"][c("(Intercept)", pred)]
+sel_se[is.na(sel_se)] <- 0
+
+summary(sel_mod)
+```
+
+Observation: We identify a model where several variables were dropped (reducing from 25 variables to 16). The adjusted R^2 only slightly increases from from the global model to the selected model. 
+
+(Note that the coefficients and p-values for this model are identical to those if we a priori selected the variables for glm)
+
+### Bootstrap model
+
+Finally, repeat backwards elimination using bootstrapping for a stability investigation and valid post-selection inference measures.
+
+```{r boot1}
+# Bootstrap ----------------------------------------------------------
+# Set number of bootstraps 
+bootnum <- 1000 # NOTE: This may take some time. If you are troubleshooting your code, temporarily reduce this to 100
+# Set up matrix for results 
+boot_est <-  boot_se <- matrix(0, ncol = length(pred) + 1, nrow = bootnum,
+                               dimnames = list(NULL, c("(Intercept)", pred)))
+# Set seed for reproducible results 
+set.seed(5437854)
+# Perform bootstrapping (sampling with replacement)
+for (i in 1:bootnum) {
+  data_id <- sample(1:dim(case1.bodyfat)[1], replace = T)
+  boot_mod <- step(lm(formula, data = case1.bodyfat[data_id, ], 
+                             x=T, y=T), 
+                         scope = list(upper = formula, 
+                                      lower = 
+                                        # Again forcing height and abdominal circumference
+                                        # into all models 
+                                        formula(siri_simulated ~ abdomen + height_cm)),
+                         direction = "backward", trace = 0)
+  boot_est[i, names(coef(boot_mod))] <- coef(boot_mod)
+  boot_se[i, names(coef(boot_mod))] <- coef(summary(boot_mod))[, "Std. Error"]
+}
+
+# Compute final bootstrap estimates as the median 
+boot_median <- apply(boot_est, 2, median)
+boot_025per <- apply(boot_est, 2, function(x) quantile(x, 0.025))
+boot_975per <- apply(boot_est, 2, function(x) quantile(x, 0.975))
+boot.temp <- cbind(boot_median, boot_025per, boot_975per)
+#pander(boot.temp)
+boot.temp
+```
+
+Interpretation: Bootstrap estimates for the 2.5th (boot_025per) and 97.5th (boot_975per) percentiles can be interpreted as limits of 95% confidence intervals obtained by resampling-based multi-model inference estimated via bootstrap medians.
+
+## Calculate bias estimators
+
+### Bootstrap inclusion frequency
+
+This number represents the percentage of time a variable was selected across all bootstrapped realizations. 
+
+```{r boot_inc}
+# Calculate bootstrap inclusion frequency 
+boot_01 <- (boot_est != 0) * 1
+boot_inclusion <- apply(boot_01, 2, function(x) sum(x) / length(x) * 100)
+#pander(boot_inclusion)
+boot_inclusion
+```
+
+Interpretation: These numbers quantify how likely an independent variable is to be selected (as %).
+
+### Root mean squared difference (RMSD) ratio 
+
+The root mean squared difference (RMSD) ratio is computed as the variable-specific RMSD of the bootstrap estimates divided by the standard error in the global model (assumed unbiased), representing the variance inflation/deflation consequent to variable selection. 
+
+```{r rmsd}
+# Calculate RMSD ratio 
+sqe <- (t(boot_est) - full_est) ^ 2 # squared vector of the difference between boot and full 
+rmsd <- apply(sqe, 1, function(x) sqrt(mean(x))) # find mean of that 
+rmsdratio <- rmsd / full_se # evaluate relative to the SE (interpretation: if the selected model didn't mess anything up relative to full model, we end up with 1)
+pander(rmsdratio)
+```
+
+Interpretation: Variable selection adds to uncertainty about the regression coefficients, which is evidenced by RMSD ratios above 1 for most variables (values <1 indicate variance deflation). So our process made estimates less certain for all coefficients except for those with values <1 (which were included in fewer models ... and when they were, they were included with a set of variables that were similar to the full model).
+
+RMSD ratios above 1: indicate increased uncertainty (variance inflation) for those variables, meaning variable selection has made the estimates less certain for coefficients with ratios above 1.                      
+
+RMSD ratios below 1: indicate decreased uncertainty (variance deflation), suggesting that variable selection made the estimates more stable (more certain) for coefficients with ratios below 1. This often happens because those variables were included less frequently or under similar conditions in bootstrap models.
+
+### Relative conditional bias
+
+The relative conditional bias is calculated as the differences of the mean of resampled regression coefficients and the global model regression coefficient, divided by the global model regression coefficient, representing the bias present if a variable was selected because its regression coefficient appeared extreme in a specific resample. 
+
+```{r boot2}
+# Compute relative conditional bias (%)
+boot_mean <- apply(boot_est, 2, mean)
+boot_meanratio <- boot_mean / full_est
+boot_relbias <- (boot_meanratio / (boot_inclusion / 100) - 1) * 100
+pander(boot_relbias)
+```
+
+Interpretation: Relative conditional bias is negligible for abdomen, wrist, rs2, sleep_duration, gxe_effect, forearm, rs1, stress_level, age, neck, rs5, weight_kg, rs3, thigh, and healthy_eating_index (which we see above all have bootstrap inclusion frequencies greater than 50%), but becomes more relevant in variables for which selection is less sure. In other words, these variables were selected less often, but when they were they had larger effects.
+
+# Results 
+
+## Overview
+
+Next we will put together an overview table so we can see and discuss the results side-by-side. This code replicates the style of that shown in Table 5 of [Heinze, Wallisch, and Dunkler (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067). This would also be the main results table that you could present in a manuscript. 
+
+```{r overview}
+# Overview of estimates and measures --------------------------------
+overview <- round(cbind(full_est, full_se, boot_inclusion, sel_est, sel_se, 
+                        rmsdratio, boot_relbias, boot_median, boot_025per, 
+                        boot_975per), 4)
+overview <- overview[order(overview[,"boot_inclusion"], decreasing=T),] # Sort 
+
+# Similar to Table 5 from Heinze, Wallisch, and Dunkler (2018) --------
+pander(overview)
+#overview
+```
+
+Looking at everything together in a sorted/organized table, we note that the bootstrapped results resemble the global model ---- but interestingly we see that some of the effect estimates have opposite signs in the selected model!!!!!! This further supports the importance of adding stability investigations to your models when using variable selection as the directions of effect can vary based on which covariates are included in the final model!!!! (I didn't even plan that through data simulation!!!!!). 
+
+## Model selection frequency 
+
+Data related to the number of times a group of variables were selected together in backwards elimination can also be obtained. The following code will replicate the style of Table 6 of [Heinze, Wallisch, and Dunkler (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067). 
+
+```{r freq}
+# Model frequency ---------------------------------------------------
+# Similar to Table 6 from Heinze, Wallisch, and Dunkler (2018) ------
+pred_ord <- names(boot_inclusion)[order(boot_inclusion, decreasing = T)]
+boot_01 <- boot_01[, pred_ord]
+boot_01 <- cbind(boot_01, count = rep(1, times = bootnum))
+boot_modfreq <- aggregate(count ~ ., data = boot_01, sum)
+boot_modfreq[, "percent"] <- boot_modfreq$count / bootnum * 100
+boot_modfreq <- boot_modfreq[order(boot_modfreq[, "percent"], decreasing = T), ]
+boot_modfreq[, "cum_percent"] <- cumsum(boot_modfreq$percent)
+boot_modfreq <- boot_modfreq[boot_modfreq[, "cum_percent"] <= 80, ]
+if (dim(boot_modfreq)[1] > 20) boot_modfreq <- boot_modfreq[1:20, ]
+
+
+pander(cbind("Predictors"= apply(boot_modfreq[,c(2:14)], 1, 
+                          function(x) paste(names(x[x==1]), collapse=" ")),
+      boot_modfreq[,c("count", "percent", "cum_percent")]))
+```
+
+The above table shows the combinations of predictors and the number of times/percentage of time those predictors were selected together. The highest selection frequency is only 2% (which is not uncommon in complex health studies). 
+
+```{r freq2}
+# Model frequency in % of selected model ----------------------------
+sel_modfreq <- sum(apply(boot_01[, -dim(boot_01)[2]], 1, function(x)
+    identical(((sel_est != 0) * 1)[pred_ord], x))) / bootnum * 100
+sel_modfreq
+```
+
+Note also that our selected model (via Backwards elimination) was seen at low frequency (`r sel_modfreq`) in bootstrapping.  
+
+## Pairwise inclusion frequency 
+
+Pairwise inclusion frequencies can also be calculated with this approach. The following code will produce a table similar to Table S2 of [Heinze, Wallisch, and Dunkler (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067). 
+
+```{r pw_inclusion}
+# Pairwise inclusion frequency in % ----------------------------------
+# Similar to Supplementary Table 2 in supporting information from Heinze, Wallisch, and Dunkler (2018) --------------------
+pval <- 0.01
+boot_pairfreq <- matrix(100, ncol = length(pred), nrow = length(pred),
+                        dimnames = list(pred_ord[-1], 
+                                        pred_ord[-1]))
+
+expect_pairfreq <- NULL
+combis <- combn(pred_ord[-1], 2)
+
+for (i in 1:dim(combis)[2]) {
+  boot_pairfreq[combis[1, i], combis[2, i]] <-
+    sum(apply(boot_01[, combis[, i]], 1, sum) == 2) / bootnum * 100
+  expect_pairfreq[i] <-
+    boot_inclusion[grepl(combis[1, i], pred_ord)][1] *
+    boot_inclusion[grepl(combis[2, i], pred_ord)][1] / 100
+  boot_pairfreq[combis[2, i], combis[1, i]] <-
+    ifelse(is(suppressWarnings(try(chisq.test(boot_01[, combis[1, i]], 
+                                              boot_01[, combis[2, i]]), 
+                                   silent = T)), "try-error"),
+      NA, ifelse(suppressWarnings(
+                   chisq.test(boot_01[, combis[1, i]],
+                              boot_01[, combis[2, i]])$p.value) > pval,
+        "", ifelse(as.numeric(boot_pairfreq[combis[1, i], combis[2, i]]) < 
+                     expect_pairfreq[i], "-", "+")))
+}
+diag(boot_pairfreq) <- boot_inclusion[pred_ord][-1]
+#pander(boot_pairfreq, quote = F)
+print(boot_pairfreq, quote = F)
+```
+
+Pairwise inclusion frequencies inform about “rope teams” and “competitors” among the independent variables. For example, weight and neck circumference were both selected in only 54.5% of the resamples, while one would expect a frequency of 59.0% ( = 75.8% × 77.8%) given independent selection. Therefore, the pair is flagged with “-” in the lower triangle of this table. 
+
+Alternatively, thigh and neck are flagged with “+” because they are simultaneously selected in 48.7% of the resamples, while the expectation under independence is only 45.2%. 
+
+Interestingly, age forms a “rope team” with thigh, biceps, and knee, but age is a competitor to weight and number of children. 
+
+In this table, a significance of a chi-squared test at the 0.01 level is the formal criterion for the flags. 
+
+## Shrinkage factors 
+
+Shrinkage factors are a tool to improve the stability and generalizability of regression models, particularly in situations where there are concerns about overfitting or multicollinearity. They help strike a balance between bias and variance in model estimation, ultimately leading to more reliable and interpretable results.
+
+Post-estimation shrinkage factors (global and parameterwise) can be calculated for this approach. The shrinkage factors are obtained by leave‐one‐out resampling.
+
+Global Shrinkage Factor: This modifies all regression coefficients by the same factor. It's like a uniform adjustment applied to all coefficients in the model. The idea is to shrink coefficients towards zero or some other value to reduce their variance, thereby improving the model's generalization ability.
+
+Parameterwise Shrinkage Factor: This adjusts each regression coefficient individually. Regression coefficients for which selection is less stable are shrunken more strongly (further away from 1) than coefficients for which selection is stable (closer to 1). 
+
+NOTE: The authors of this paper DO NOT recommend parameterwise shrinkage factors for data sets with high correlations between the variables. Nevertheless, the following code computes these data similar to that shown in Table S3 of [Heinze, Wallisch, and Dunkler (2018)](https://onlinelibrary.wiley.com/doi/full/10.1002/bimj.201700067).
+
+See Section 4.5 (p. 75) of Frank E. Harrell, Jr. Regression Modeling Strategies: https://antivirus.uclv.edu.cu/update/libros/Mathematics%20and%20Statistics/Regression%20Modeling%20Strategies%20-%20Frank%20E.%20Harrell%20%2C%20Jr.%2C%202nd%20ed.%202015%20-%20978-3-319-19425-7.pdf
+
+```{r shrinkage}
+# Shrinkage factors --------------------------------------------------
+# Similar to Supplementary Table 3 in supporting information from Heinze, Wallisch, and Dunkler (2018) -------------
+sel_mod_shrinkg <- shrink(sel_mod, type="global")
+sel_mod_shrinkp <- shrink(sel_mod, type="parameterwise")
+
+pander(sel_mod_shrinkp$ShrinkageFactors)
+
+# Global Shrinkage Factor
+sel_mod_shrinkg$ShrinkageFactors # Very close to 1, so can be neglected
+
+# Parameterise shrinkage
+sel_mod_shrinkp_vcov<-vcov(sel_mod_shrinkp)
+pander(round(cbind("Shrinkage factors" = sel_mod_shrinkp$ShrinkageFactors,
+            "SE of shrinkage factors" = sqrt(diag(sel_mod_shrinkp_vcov))[-1],
+            "Correlation matrix of shrinkage factors" = 
+              cov2cor(sel_mod_shrinkp_vcov)[-1,-1]),4))
+#round(cbind("Shrinkage factors" = sel_mod_shrinkp$ShrinkageFactors,
+#            "SE of shrinkage factors" = sqrt(diag(sel_mod_shrinkp_vcov))[-1],
+#            "Correlation matrix of shrinkage factors" = 
+#              cov2cor(sel_mod_shrinkp_vcov)[-1,-1]),4)
+```
+
+Interpretation: In this example, model shrinkage is `r sel_mod_shrinkg$ShrinkageFactors` which is very close to 1 and hence can be neglected. 
+
+These quantities were obtained using the R package [`shrink`](https://cran.r-project.org/web/packages/shrink/index.html) [(Dunkler, Sauerbrei and Heinze, 2016)](https://www.jstatsoft.org/article/view/v069i08).
+
+# Conclusion 
+
+Thanks for stopping by to take a look! Hopefully this is another helfpul tool for your statistical tool belt! Reach out if you want to chat. 
+-Lacey (law145@pitt.edu)
+
+# References 
+
+Courvoisier, D. S., Combescure, C., Agoritsas, T., Gayet-Ageron, A., & Perneger, T. V. (2011). Performance of logistic regression modeling: Beyond the number of events per variable, the role of data structure. Journal of Clinical Epidemiology, 64, 993–1000.
+
+Dunkler, D., Sauerbrei, W., and Heinze, G. (2016). Global, parameterwise and joint shrinkage factor estimation. Journal of Statistical Software 69, 1-19.
+
+Heinze G, Wallisch C, Dunkler D. Variable selection - A review and recommendations for the practicing statistician. Biom J. 2018 May;60(3):431-449.
+
+Johnson, R. W. (1996). Fitting percentage of body fat to simple body measurements. Journal of Statistics Education, 4(1), 265–266.
+
+Siri, W. E. (1956). The gross composition of the body. Advances in Biological and Medical Physics, 4, 239–280.
+
+# Session Information
+
+```{r session}
+sessionInfo()
+```
