@@ -1,7 +1,7 @@
 Case study: variable selection for the approximation of body fat
 ================
 Lacey W. Heinsberg
-November 06, 2024, 16:25
+November 08, 2024, 09:54
 
 
 
@@ -984,14 +984,10 @@ Table continues below
 #overview
 ```
 
-Looking at everything together in a sorted/organized table, we note that
-the bootstrapped results resemble the global model —- but interestingly
-we see that some of the effect estimates have opposite signs in the
-selected model!!!!!! This further supports the importance of adding
-stability investigations to your models when using variable selection as
-the directions of effect can vary based on which covariates are included
-in the final model!!!! (I didn’t even plan that through data
-simulation!!!!!).
+Looking at everything together in
+[Results_NUR_VarSel.pdf](Results_NUR_VarSel.pdf) in a sorted/organized
+table, we note that the bootstrapped results resemble the global model,
+suggesting little selection bias in the aggregated model.
 
 ## Model selection frequency
 
