@@ -27,7 +27,7 @@ performing variable selection with a bootstrapping stability
 investigation to support valid post-selection inference.
 
 A case study with example code is presented in
-[CaseStudy.Rmd](CaseStudy.Rmd).
+[CaseStudy.Rmd](CaseStudy.Rmd) and [CaseStudy.md](CaseStudy.md).
 
 # 3 Contact information
 

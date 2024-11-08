@@ -31,7 +31,7 @@ Heinsberg LW. Statistical Tools to Support Implementation: Variable Selection an
 
 The goal of this repository is to provide detailed code and a synthetic example data set to guide nurse scientists and other researchers in performing variable selection with a bootstrapping stability investigation to support valid post-selection inference. 
 
-A case study with example code is presented in [CaseStudy.Rmd](CaseStudy.Rmd).
+A case study with example code is presented in [CaseStudy.Rmd](CaseStudy.Rmd) and [CaseStudy.md](CaseStudy.md).
 
 # Contact information
 
